@@ -585,3 +585,24 @@ Les notifications internes sont prioritaires. L'email est complémentaire et ne 
 ## RM-053 — Statistiques initiales
 
 Les statistiques initiales couvrent les missions par statut, type et bureau, les contrôles réalisés, les résultats chargés et déchargés, les montants concernés, les missions en cours et les missions clôturées. Elles respectent le périmètre de l'utilisateur.
+
+---
+
+## RM-054 — Multi-assujettis par mission
+
+Une mission de contrôle (sur place ou sur pièces) peut concerner un ou plusieurs assujettis appartenant au périmètre du bureau de contrôle compétent. L'association entre une mission et un assujetti est unique pour une mission donnée. Dans le cas d'une mission sur place, chaque assujetti associé à la mission est affecté à une équipe confirmée pour l'exécution du contrôle.
+
+---
+
+## RM-055 — Référentiel métier initial des 36 secteurs d'activité
+
+La Division Contrôle comprend 6 bureaux de contrôle opérationnels, chacun ayant la responsabilité exclusive de 6 secteurs d'activité spécifiques (soit 36 secteurs au total) :
+1. **Bureau Contrôle Sol** : Affaires foncières (`SOL_FONCIER`), Concessions foncières (`SOL_CONCESSIONS`), Lotissements (`SOL_LOTISSEMENTS`), Occupation du domaine public (`SOL_DOMAINE_PUBLIC`), Immobilier (`SOL_IMMOBILIER`), Aménagement du territoire (`SOL_AMENAGEMENT`).
+2. **Bureau Contrôle Sous-sol** : Mines (`SSOL_MINES`), Hydrocarbures (`SSOL_HYDROCARBURES`), Carrières (`SSOL_CARRIERES`), Substances minérales (`SSOL_SUBSTANCES_MINERALES`), Recherche minière (`SSOL_RECHERCHE_MINIERE`), Exploitation pétrolière (`SSOL_EXPLOITATION_PETROLIERE`).
+3. **Bureau Recettes judiciaires et de participation** : Cours et tribunaux (`RJP_COURS_TRIBUNAUX`), Parquets (`RJP_PARQUETS`), Tribunaux de commerce (`RJP_TRIBUNAUX_COMMERCE`), Cour de cassation (`RJP_COUR_CASSATION`), Cour constitutionnelle (`RJP_COUR_CONSTITUTIONNELLE`), Participations de l'État (`RJP_PARTICIPATIONS_ETAT`).
+4. **Bureau Contrôle Administratif 1** : Transports (`ADM1_TRANSPORTS`), Aviation (`ADM1_AVIATION`), Navigation maritime et fluviale (`ADM1_NAVIGATION`), Télécommunications (`ADM1_TELECOMMUNICATIONS`), Postes (`ADM1_POSTES`), Communication (`ADM1_COMMUNICATION`).
+5. **Bureau Contrôle Administratif 2** : Commerce (`ADM2_COMMERCE`), Industrie (`ADM2_INDUSTRIE`), Tourisme (`ADM2_TOURISME`), Agriculture (`ADM2_AGRICULTURE`), Pêche et élevage (`ADM2_PECHE_ELEVAGE`), Environnement (`ADM2_ENVIRONNEMENT`).
+6. **Bureau Contrôle Administratif 3** : Emploi et travail (`ADM3_EMPLOI_TRAVAIL`), Affaires sociales (`ADM3_AFFAIRES_SOCIALES`), Santé (`ADM3_SANTE`), Enseignement (`ADM3_ENSEIGNEMENT`), Culture (`ADM3_CULTURE`), Arts (`ADM3_ARTS`).
+
+Ces 36 secteurs constituent le référentiel métier officiel de l'application pour le projet universitaire. Leur nomenclature administrative pourra être ultérieurement affinée lors des échanges institutionnels avec la DGRAD réelle.
+

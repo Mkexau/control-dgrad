@@ -22,7 +22,9 @@ Une mission peut-elle concerner :
 - plusieurs assujettis ;
 - un secteur entier ?
 
-**Statut : À VALIDER**
+**Statut : VALIDÉ**
+
+Une mission peut concerner un ou plusieurs assujettis rattachés au secteur et au bureau compétent. L'association se fait via la table de liaison `mission_assujettis` sans duplication.
 
 ---
 
@@ -31,6 +33,8 @@ Une mission peut-elle concerner :
 Un même assujetti peut-il faire l'objet de plusieurs missions simultanément ?
 
 **Statut : À VALIDER**
+
+La possibilité d'exécuter plusieurs missions simultanées sur un même assujetti pour des actes ou périodes distincts reste à préciser sur le plan administratif officiel.
 
 ---
 
@@ -42,7 +46,9 @@ Exemple proposé :
 
 `MIS-2026-000001`
 
-**Statut : À VALIDER**
+**Statut : VALIDÉ POUR LA V1**
+
+Le format technique retenu pour la V1 est `MIS-YYYY-NNNNNN` avec unicité garantie en base de données.
 
 ---
 
@@ -50,7 +56,9 @@ Exemple proposé :
 
 Quel identifiant officiel doit être utilisé pour identifier un assujetti ?
 
-**Statut : À VALIDER**
+**Statut : VALIDÉ POUR LA V1**
+
+La V1 gère un identifiant textuel unique (NIF, numéro RCCM ou identifiant fiscal/administratif attribué).
 
 ---
 
@@ -63,7 +71,9 @@ Exemple :
 - personne physique ;
 - personne morale.
 
-**Statut : À VALIDER**
+**Statut : VALIDÉ POUR LA V1**
+
+La V1 gère les types `PERSONNE_PHYSIQUE` et `PERSONNE_MORALE`.
 
 ---
 
@@ -237,7 +247,9 @@ Les destinataires doivent notamment être définis pour :
 - demandes de renseignements ;
 - clôture.
 
-**Statut : À VALIDER**
+**Statut : VALIDÉ POUR LA V1**
+
+Les notifications internes sont envoyées aux acteurs concernés par chaque événement du workflow selon leur rôle, bureau et affectation. L'acheminement interne est prioritaire et non bloquant.
 
 ---
 
@@ -283,7 +295,9 @@ Le système doit au minimum pouvoir représenter :
 - contenu ;
 - documents associés.
 
-**Statut : À VALIDER**
+**Statut : VALIDÉ POUR LA V1**
+
+Le système gère les types ACCORD, DESACCORD et CARENCE avec traçabilité complète des signataires (nom, qualité, date, statut de signature) et document PDF associé.
 
 ---
 
@@ -322,7 +336,9 @@ Quels calculs doivent être automatisés ?
 
 Le système ne doit pas inventer de formule financière ou de pénalité qui n'est pas définie dans les documents métier.
 
-**Statut : À VALIDER**
+**Statut : VALIDÉ POUR LA V1**
+
+Le système assure la cohérence arithmétique élémentaire (`montant_total = montant_du + montant_penalites`) en devise unique et interdit les calculs en virgule flottante non contrôlés. Aucune formule arbitraire de pénalité n'est inventée.
 
 ---
 
@@ -543,3 +559,24 @@ Il possède son propre parcours et son propre document d'autorisation.
 L'entité administrative compétente pour un contrôle est le Bureau de contrôle responsable du secteur d'activité concerné.
 
 **Statut : VALIDÉ**
+
+---
+
+## QM-040 — Rôle utilisateur unique
+
+Un utilisateur possède un rôle applicatif principal unique dans son profil.
+
+Le champ `profiles.role` est unique et il n'y a pas de système multi-rôles pour la V1.
+
+**Statut : VALIDÉ**
+
+---
+
+## QM-041 — Contrôleur responsable sur pièces unique
+
+Une mission de contrôle sur pièces est confiée à un contrôleur responsable principal unique via `controles.controleur_responsable_id`.
+
+Pas de système multi-contrôleurs pour la V1.
+
+**Statut : VALIDÉ**
+
