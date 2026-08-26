@@ -1,119 +1,69 @@
-// =============================================================================
-// DGRAD CONTROLE — RÉCUPÉRATION DU PROFIL APPLICATIF COURANT
-// Serveur uniquement — ne jamais importer dans un Client Component
-// =============================================================================
-import 'server-only';
-
-import { createSupabaseServerClient } from '@/lib/supabase/server';
-import type { AuthContext, AuthorizationError, UserProfile } from '@/lib/types/auth';
-
-type Result<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: AuthorizationError };
+import { createClient } from "@/lib/supabase/server";
+import { CurrentUser, CurrentUserSchema } from "@/lib/validations/auth";
+import { cache } from "react";
 
 /**
- * Résout le contexte complet de l'utilisateur courant :
- *   Auth user → profil applicatif → rôle → bureau → division
- *
- * Retourne un Result discriminé pour forcer la gestion explicite des cas
- * d'erreur dans les Server Components et Server Actions.
- *
- * Ne jamais appeler cette fonction côté navigateur.
- * Créer un nouveau contexte par requête.
+ * Récupère l'utilisateur actuellement authentifié ainsi que son profil métier.
+ * Utilise React cache() pour dédupliquer les appels durant le cycle de vie d'une requête Server Component.
+ * Utilise supabase.auth.getUser() pour vérifier l'authenticité du JWT côté serveur.
+ * Les informations sensibles (mot de passe, etc.) ne sont jamais retournées.
  */
-export async function getCurrentUser(): Promise<Result<AuthContext>> {
-  const supabase = await createSupabaseServerClient();
+export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
+  const supabase = await createClient();
 
-  // 1. Récupérer l'utilisateur Auth Supabase via le cookie de session
+  // 1. Récupération sécurisée de l'utilisateur authentifié (vérification serveur du JWT)
   const {
-    data: { user: authUser },
+    data: { user },
     error: authError,
   } = await supabase.auth.getUser();
 
-  if (authError || !authUser) {
-    return { ok: false, error: { kind: 'UNAUTHENTICATED' } };
+  if (authError || !user) {
+    return null;
   }
 
-  // 2. Récupérer le profil applicatif avec le bureau et la division
-  const { data: profileRow, error: profileError } = await supabase
-    .from('profiles')
+  // 2. Récupération du profil associé dans public.profiles via auth_user_id
+  // La RLS sur profiles garantit que l'utilisateur peut lire son propre profil
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
     .select(`
       id,
-      auth_user_id,
-      nom,
-      prenom,
-      email,
-      telephone,
-      bureau_id,
       role,
       actif,
-      bureaux:bureau_id (
-        id,
-        code,
-        nom,
-        division_id,
-        divisions:division_id (
-          id,
-          code,
-          nom,
-          direction_id
-        )
+      bureau_id,
+      bureaux (
+        division_id
       )
     `)
-    .eq('auth_user_id', authUser.id)
+    .eq("auth_user_id", user.id)
     .single();
 
-  if (profileError || !profileRow) {
-    // L'utilisateur Auth existe mais n'a pas de profil applicatif (compte non provisionné)
-    return { ok: false, error: { kind: 'FORBIDDEN', reason: 'Profil applicatif introuvable.' } };
+  if (profileError || !profile) {
+    return null;
   }
 
-  // 3. Vérifier que le compte est actif
-  if (!profileRow.actif) {
-    return { ok: false, error: { kind: 'ACCOUNT_DISABLED' } };
+  if (!profile.actif) {
+    // Si le compte est désactivé, on refuse l'accès
+    return null;
   }
 
-  // 4. Construire le profil typé
-  const bureauRow = Array.isArray(profileRow.bureaux) ? profileRow.bureaux[0] : profileRow.bureaux;
-  const divisionRow = bureauRow && (Array.isArray((bureauRow as { divisions?: unknown }).divisions)
-    ? ((bureauRow as { divisions?: unknown[] }).divisions)?.[0]
-    : (bureauRow as { divisions?: unknown }).divisions);
+  const divisionId = (profile.bureaux as { division_id?: string } | null)?.division_id ?? null;
 
-  const profile: UserProfile = {
-    id: profileRow.id as string,
-    auth_user_id: profileRow.auth_user_id as string,
-    nom: profileRow.nom as string,
-    prenom: profileRow.prenom as string,
-    email: profileRow.email as string,
-    telephone: profileRow.telephone as string | null,
-    bureau_id: profileRow.bureau_id as string | null,
-    role: profileRow.role as UserProfile['role'],
-    actif: profileRow.actif as boolean,
-    bureau: bureauRow
-      ? {
-          id: (bureauRow as { id: string }).id,
-          code: (bureauRow as { code: string }).code,
-          nom: (bureauRow as { nom: string }).nom,
-          division_id: (bureauRow as { division_id: string }).division_id,
-        }
-      : null,
-    division: divisionRow
-      ? {
-          id: (divisionRow as { id: string }).id,
-          code: (divisionRow as { code: string }).code,
-          nom: (divisionRow as { nom: string }).nom,
-          direction_id: (divisionRow as { direction_id: string }).direction_id,
-        }
-      : null,
-  };
-
-  const context: AuthContext = {
-    authUserId: authUser.id,
-    profile,
+  // 3. Consolidation et validation Zod
+  const rawUser = {
+    id: user.id,
+    email: user.email ?? "",
     role: profile.role,
-    bureauId: profile.bureau_id,
-    divisionId: profile.division?.id ?? null,
+    bureau_id: profile.bureau_id,
+    division_id: divisionId,
+    is_active: profile.actif,
   };
 
-  return { ok: true, data: context };
-}
+  const parsedUser = CurrentUserSchema.safeParse(rawUser);
+
+  if (!parsedUser.success) {
+    console.error("Format des données utilisateur invalide:", parsedUser.error);
+    return null;
+  }
+
+  return parsedUser.data;
+});
