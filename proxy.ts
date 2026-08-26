@@ -1,71 +1,79 @@
-import { createServerClient } from '@supabase/ssr';
-import { NextResponse, type NextRequest } from 'next/server';
+// =============================================================================
+// DGRAD CONTROLE — PROXY (anciennement middleware.ts)
+// Remplace middleware.ts — renommé proxy.ts dans Next.js 16
+//
+// Rôle : protection optimiste des routes et rafraîchissement de session.
+// Ce fichier ne fait PAS de vérification de rôle ou de logique métier :
+//   → celles-ci sont effectuées côté serveur dans les guards.ts
+//
+// La protection de route ici est "best-effort" (cookie de session).
+// Elle complète, mais ne remplace jamais, l'autorisation serveur.
+// =============================================================================
+
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { createSupabaseProxyClient } from '@/lib/supabase/server';
+
+// Routes accessibles sans session
+const PUBLIC_ROUTES = ['/connexion', '/favicon.ico'];
+
+// Préfixes d'assets qui ne doivent jamais passer par ce proxy
+const ASSET_PREFIXES = ['/_next', '/api', '/public'];
+
+function isPublicRoute(pathname: string): boolean {
+  return PUBLIC_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'));
+}
+
+function isAssetRoute(pathname: string): boolean {
+  return ASSET_PREFIXES.some((p) => pathname.startsWith(p));
+}
 
 export async function proxy(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  });
+  const { pathname } = request.nextUrl;
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return supabaseResponse;
+  // Laisser passer les assets sans aucun traitement
+  if (isAssetRoute(pathname)) {
+    return NextResponse.next();
   }
 
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll();
-      },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-        supabaseResponse = NextResponse.next({
-          request,
-        });
-        cookiesToSet.forEach(({ name, value, options }) =>
-          supabaseResponse.cookies.set(name, value, options)
-        );
-      },
-    },
+  // Créer la réponse de base pour y attacher les cookies de session rafraîchis
+  const response = NextResponse.next({
+    request: { headers: request.headers },
   });
 
-  // Refresh auth token session
+  // Créer le client Supabase avec accès en lecture/écriture aux cookies
+  // pour permettre le rafraîchissement automatique du token.
+  const supabase = createSupabaseProxyClient(request, response);
+
+  // Rafraîchir la session si nécessaire.
+  // IMPORTANT : utiliser getUser() plutôt que getSession() pour valider le JWT côté serveur.
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { pathname } = request.nextUrl;
+  // Routes publiques : si l'utilisateur est déjà connecté, rediriger vers le tableau de bord
+  if (isPublicRoute(pathname)) {
+    if (user && pathname === '/connexion') {
+      return NextResponse.redirect(new URL('/tableau-de-bord', request.nextUrl));
+    }
+    return response;
+  }
 
-  const protectedRoutes = [
-    '/dashboard',
-    '/assujettis',
-    '/analyses',
-    '/missions',
-    '/controles',
-    '/rapports',
-    '/administration',
-  ];
-
-  const isProtectedRoute = protectedRoutes.some((route) =>
-    pathname.startsWith(route)
-  );
-
-  if (isProtectedRoute && !user) {
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('redirectTo', pathname);
+  // Routes protégées : rediriger vers /connexion si pas de session
+  if (!user) {
+    const loginUrl = new URL('/connexion', request.nextUrl);
+    // Conserver l'URL cible pour une redirection post-login
+    loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  if (pathname === '/login' && user) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
-  }
-
-  return supabaseResponse;
+  // Session valide — laisser passer avec les cookies potentiellement rafraîchis
+  return response;
 }
 
+// Appliquer le proxy à toutes les routes sauf les assets statiques
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
