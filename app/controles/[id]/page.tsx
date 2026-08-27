@@ -1,7 +1,8 @@
 import React from 'react';
 import { notFound, redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth/get-current-user';
-import { createAdminClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
+import { assertCanReadControle } from '@/lib/auth/controle-access';
 import { ControleDetailClient } from './controle-detail-client';
 
 export const dynamic = 'force-dynamic';
@@ -18,7 +19,8 @@ export default async function ControleDetailPage({ params }: ControleDetailPageP
     redirect(`/connexion?redirect=/controles/${id}`);
   }
 
-  const supabase = createAdminClient();
+  // Client lié à la session : aucune lecture utilisateur ne contourne RLS.
+  const supabase = await createClient();
 
   // 1. Récupérer le contrôle avec relations
   const { data: controle, error } = await supabase
@@ -78,18 +80,24 @@ export default async function ControleDetailPage({ params }: ControleDetailPageP
     .eq('profile_id', currentUser.id)
     .maybeSingle();
 
-  // 3. Charger l'historique d'audit du contrôle
-  const { data: auditLogs } = await supabase
-    .from('audit_logs')
-    .select(`
-      id, action, created_at, old_data, new_data,
-      profiles(nom, prenom, email, role)
-    `)
-    .eq('entity_type', 'controles')
-    .eq('entity_id', controle.id)
-    .order('created_at', { ascending: false });
+  const mission = Array.isArray(controle.missions) ? controle.missions[0] : controle.missions;
+  const equipe = Array.isArray(controle.equipes) ? controle.equipes[0] : controle.equipes;
+  if (!mission) notFound();
 
-  // 4. Charger les demandes de renseignements du contrôle
+  try {
+    assertCanReadControle(currentUser, {
+      type_controle: controle.type_controle,
+      controleur_responsable_id: controle.controleur_responsable_id,
+      mission_bureau_id: mission.bureau_id,
+      equipe_chef_id: equipe?.chef_equipe_id ?? null,
+      user_agent_id: userAgent?.id ?? null,
+    });
+  } catch {
+    // Ne jamais révéler l'existence d'un contrôle hors périmètre.
+    notFound();
+  }
+
+  // 3. Charger les demandes de renseignements du contrôle
   const { data: demandesRenseignements } = await supabase
     .from('demandes_renseignements')
     .select(`
@@ -98,6 +106,28 @@ export default async function ControleDetailPage({ params }: ControleDetailPageP
     `)
     .eq('controle_id', controle.id)
     .order('created_at', { ascending: false });
+
+  // 4. L'historique regroupe les événements du contrôle et de ses demandes.
+  const auditSelect = `
+    id, action, created_at, old_data, new_data,
+    profiles(nom, prenom, email, role)
+  `;
+  const [{ data: controleAuditLogs }, { data: demandesAuditLogs }] = await Promise.all([
+    supabase
+      .from('audit_logs')
+      .select(auditSelect)
+      .eq('entity_type', 'controles')
+      .eq('entity_id', controle.id),
+    demandesRenseignements && demandesRenseignements.length > 0
+      ? supabase
+        .from('audit_logs')
+        .select(auditSelect)
+        .eq('entity_type', 'demandes_renseignements')
+        .in('entity_id', demandesRenseignements.map((demande) => demande.id))
+      : Promise.resolve({ data: [] }),
+  ]);
+  const auditLogs = [...(controleAuditLogs || []), ...(demandesAuditLogs || [])]
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
 
   return (
     <ControleDetailClient

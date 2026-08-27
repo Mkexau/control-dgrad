@@ -812,3 +812,11 @@ La possession d'une session valide ne doit pas conférer l'accès aux documents 
 
 Cloisonnement horizontal étanche et protection intégrale des documents officiels.
 
+---
+
+## ADR-038 — Tests Node des guards TypeScript de production
+
+Statut : VALIDÉ
+
+Les guards purs de sécurité sont importés directement dans les tests Node natifs. `allowImportingTsExtensions` est activé car le projet n’émet pas de JavaScript via TypeScript ; les Server Actions et les tests appellent ainsi la même logique d’autorisation.
+

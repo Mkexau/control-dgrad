@@ -6,7 +6,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { getCurrentUser } from '@/lib/auth/get-current-user';
-import { createAdminClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
+import { assertCanManageDemandeRenseignements, type ControleDemandeScope } from '@/lib/auth/controle-access';
 import {
   DemandeRenseignementsCreateSchema,
   DemandeRenseignementsReponseSchema,
@@ -34,13 +35,6 @@ export async function creerDemandeRenseignements(
       return { success: false, error: 'Session invalide ou utilisateur non connecté.' };
     }
 
-    if (currentUser.role === 'ADMIN') {
-      return {
-        success: false,
-        error: 'Action non autorisée : un administrateur technique ne peut pas émettre de demande métier.',
-      };
-    }
-
     const parsed = DemandeRenseignementsCreateSchema.safeParse(input);
     if (!parsed.success) {
       return {
@@ -50,7 +44,7 @@ export async function creerDemandeRenseignements(
     }
 
     const { controle_id, assujetti_id, date_envoi, date_limite, contenu } = parsed.data;
-    const supabase = createAdminClient();
+    const supabase = await createClient();
 
     // 1. Récupérer le contrôle avec sa mission
     const { data: controle, error: ctrlErr } = await supabase
@@ -70,29 +64,11 @@ export async function creerDemandeRenseignements(
       };
     }
 
-    if (controle.statut === 'ANNULE') {
-      return { success: false, error: 'Impossible d’émettre une demande pour un contrôle annulé.' };
-    }
-
     const mission = Array.isArray(controle.missions) ? controle.missions[0] : controle.missions;
-
-    // 2. Vérification des permissions & périmètre (anti-IDOR)
-    const isControleur = controle.controleur_responsable_id === currentUser.id;
-    const isHierarchyInPerimeter =
-      ['CHEF_BUREAU', 'CHEF_SECTION', 'CHEF_DIVISION', 'DIRECTEUR_CONTROLES', 'DIRECTEUR_GENERAL'].includes(
-        currentUser.role
-      ) &&
-      (currentUser.role === 'DIRECTEUR_GENERAL' ||
-        currentUser.role === 'DIRECTEUR_CONTROLES' ||
-        !currentUser.bureau_id ||
-        currentUser.bureau_id === mission?.bureau_id);
-
-    if (!isControleur && !isHierarchyInPerimeter) {
-      return {
-        success: false,
-        error: 'Action non autorisée : vous n’êtes pas le contrôleur responsable désigné pour ce dossier.',
-      };
-    }
+    assertCanManageDemandeRenseignements(currentUser, {
+      ...controle,
+      mission,
+    } as ControleDemandeScope, 'CREATION');
 
     const effectiveDateEnvoi = date_envoi || new Date().toISOString().split('T')[0];
 
@@ -154,27 +130,28 @@ export async function enregistrerReponseDemandeRenseignements(
       return { success: false, error: 'Session invalide ou utilisateur non connecté.' };
     }
 
-    if (currentUser.role === 'ADMIN') {
-      return { success: false, error: 'Action non autorisée pour un administrateur technique.' };
-    }
-
     const parsed = DemandeRenseignementsReponseSchema.safeParse(input);
     if (!parsed.success) {
       return { success: false, error: parsed.error.issues?.[0]?.message || 'Données invalides.' };
     }
 
     const { demande_id, date_reponse, commentaire } = parsed.data;
-    const supabase = createAdminClient();
+    const supabase = await createClient();
 
     const { data: demande, error: getErr } = await supabase
       .from('demandes_renseignements')
-      .select('id, controle_id, statut, controles(id, controleur_responsable_id, missions(id, bureau_id))')
+      .select('id, controle_id, statut, controles(id, assujetti_id, statut, type_controle, controleur_responsable_id, missions(id, bureau_id))')
       .eq('id', demande_id)
       .single();
 
     if (getErr || !demande) {
       return { success: false, error: 'Demande de renseignements introuvable.' };
     }
+
+    const controle = Array.isArray(demande.controles) ? demande.controles[0] : demande.controles;
+    const mission = controle && (Array.isArray(controle.missions) ? controle.missions[0] : controle.missions);
+    if (!controle) return { success: false, error: 'Contrôle associé introuvable.' };
+    assertCanManageDemandeRenseignements(currentUser, { ...controle, mission } as ControleDemandeScope, 'REPONSE', demande.statut);
 
     const { error: updErr } = await supabase
       .from('demandes_renseignements')
@@ -195,7 +172,7 @@ export async function enregistrerReponseDemandeRenseignements(
       entity_type: 'demandes_renseignements',
       entity_id: demande_id,
       old_data: { statut: demande.statut },
-      new_data: { statut: 'REPONDU', date_reponse, commentaire },
+      new_data: { controle_id: demande.controle_id, statut: 'REPONDU', date_reponse, commentaire },
     });
 
     revalidatePath(`/controles/${demande.controle_id}`);
@@ -218,27 +195,28 @@ export async function relancerDemandeRenseignements(
       return { success: false, error: 'Session invalide ou utilisateur non connecté.' };
     }
 
-    if (currentUser.role === 'ADMIN') {
-      return { success: false, error: 'Action non autorisée pour un administrateur technique.' };
-    }
-
     const parsed = DemandeRenseignementsRelanceSchema.safeParse(input);
     if (!parsed.success) {
       return { success: false, error: parsed.error.issues?.[0]?.message || 'Données invalides.' };
     }
 
     const { demande_id, nouvelle_date_limite, motif_relance } = parsed.data;
-    const supabase = createAdminClient();
+    const supabase = await createClient();
 
     const { data: demande, error: getErr } = await supabase
       .from('demandes_renseignements')
-      .select('id, controle_id, statut, date_limite')
+      .select('id, controle_id, statut, date_limite, controles(id, assujetti_id, statut, type_controle, controleur_responsable_id, missions(id, bureau_id))')
       .eq('id', demande_id)
       .single();
 
     if (getErr || !demande) {
       return { success: false, error: 'Demande de renseignements introuvable.' };
     }
+
+    const controle = Array.isArray(demande.controles) ? demande.controles[0] : demande.controles;
+    const mission = controle && (Array.isArray(controle.missions) ? controle.missions[0] : controle.missions);
+    if (!controle) return { success: false, error: 'Contrôle associé introuvable.' };
+    assertCanManageDemandeRenseignements(currentUser, { ...controle, mission } as ControleDemandeScope, 'RELANCE', demande.statut);
 
     const updatePayload: Record<string, unknown> = {
       statut: 'RELANCE',
@@ -263,7 +241,7 @@ export async function relancerDemandeRenseignements(
       entity_type: 'demandes_renseignements',
       entity_id: demande_id,
       old_data: { statut: demande.statut, date_limite: demande.date_limite },
-      new_data: { statut: 'RELANCE', nouvelle_date_limite, motif_relance },
+      new_data: { controle_id: demande.controle_id, statut: 'RELANCE', nouvelle_date_limite, motif_relance },
     });
 
     revalidatePath(`/controles/${demande.controle_id}`);

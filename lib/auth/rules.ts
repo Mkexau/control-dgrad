@@ -32,6 +32,9 @@ export function checkAuthenticated(user: CurrentUser | null): CurrentUser {
   if (!user) {
     throw new UnauthorizedError();
   }
+  if (!user.is_active) {
+    throw new ForbiddenError('Compte utilisateur inactif');
+  }
   return user;
 }
 

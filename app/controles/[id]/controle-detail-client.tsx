@@ -232,6 +232,13 @@ export function ControleDetailClient({
     (isChefEquipe || isControleurPieces || isHierarchy) &&
     (currentUser.role as string) !== 'ADMIN';
 
+  // Les demandes de renseignements font partie de l'exécution SUR_PIECES :
+  // elles sont strictement réservées au contrôleur responsable désigné.
+  const canManageDemandesRenseignements =
+    isControleurPieces &&
+    currentUser.bureau_id === controle.missions.bureau_id &&
+    (controle.statut === 'EN_ATTENTE' || controle.statut === 'EN_COURS');
+
   // Calcul dynamique des montants
   const existingRedSum =
     existingResultat?.redressements?.reduce((acc, r) => acc + Number(r.montant || 0), 0) ||
@@ -1173,7 +1180,7 @@ export function ControleDetailClient({
               </div>
 
               {/* Formulaire de nouvelle demande */}
-              {canExecute && (controle.statut === 'EN_COURS' || controle.statut === 'EN_ATTENTE') && (
+              {canManageDemandesRenseignements && (
                 <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/20 space-y-3">
                   <p className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">
                     Émettre une demande de renseignements ou de pièces complémentaires
@@ -1278,7 +1285,7 @@ export function ControleDetailClient({
                         </span>
                       </div>
                       {/* Actions rapides sur la demande */}
-                      {canExecute && dr.statut !== 'REPONDU' && (
+                      {canManageDemandesRenseignements && (dr.statut === 'EN_ATTENTE' || dr.statut === 'RELANCE') && (
                         <div className="flex gap-2 pt-1">
                           <button
                             type="button"
