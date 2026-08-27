@@ -4,13 +4,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 describe('Database Schema & Migration Validation', () => {
-    const migrationPath = path.resolve('supabase/migrations/20260826_000001_initial_schema.sql');
-    const storagePath = path.resolve('supabase/migrations/20260826_000002_storage_setup.sql');
+    const migrationPath = path.resolve('supabase/migrations/20260826000001_initial_schema.sql');
+    const storagePath = path.resolve('supabase/migrations/20260826000002_storage_setup.sql');
     const seedPath = path.resolve('supabase/seed.sql');
 
     it('migration files must exist', () => {
-        assert.ok(fs.existsSync(migrationPath), 'Migration 20260826_000001_initial_schema.sql must exist');
-        assert.ok(fs.existsSync(storagePath), 'Migration 20260826_000002_storage_setup.sql must exist');
+        assert.ok(fs.existsSync(migrationPath), 'Migration 20260826000001_initial_schema.sql must exist');
+        assert.ok(fs.existsSync(storagePath), 'Migration 20260826000002_storage_setup.sql must exist');
         assert.ok(fs.existsSync(seedPath), 'Seed file seed.sql must exist');
     });
 
