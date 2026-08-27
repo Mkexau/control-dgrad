@@ -3,7 +3,21 @@
 // =============================================================================
 
 import { z } from 'zod';
-import { RoleEnum } from './auth';
+
+export const RoleEnum = z.enum([
+  'ADMIN',
+  'ANALYSTE',
+  'CHEF_BUREAU',
+  'CHEF_SECTION',
+  'CHEF_DIVISION',
+  'DIRECTEUR_CONTROLES',
+  'DIRECTEUR_GENERAL',
+  'CHEF_EQUIPE',
+  'CONTROLEUR',
+  'CONSULTATION',
+]);
+
+export type Role = z.infer<typeof RoleEnum>;
 
 // =============================================================================
 // 1. Schémas Référentiels : Directions

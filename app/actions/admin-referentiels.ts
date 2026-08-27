@@ -6,7 +6,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { requireAdmin } from '@/lib/auth/guards';
-import { createAdminClient, createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { logAuditEvent } from '@/lib/audit/audit-service';
 import {
   DirectionCreateSchema,
