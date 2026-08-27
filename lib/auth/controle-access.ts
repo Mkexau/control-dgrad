@@ -79,7 +79,11 @@ export function assertCanReadControle(user: CurrentUser | null, controle: Contro
   }
 
   if (authenticatedUser.role === 'CONTROLEUR') {
-    if (controle.type_controle === 'SUR_PIECES' && controle.controleur_responsable_id === authenticatedUser.id) {
+    if (
+      controle.type_controle === 'SUR_PIECES' &&
+      controle.controleur_responsable_id === authenticatedUser.id &&
+      authenticatedUser.bureau_id === controle.mission_bureau_id
+    ) {
       return authenticatedUser;
     }
     throw new ForbiddenError('Ce contrôle ne vous est pas affecté.');

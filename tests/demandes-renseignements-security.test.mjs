@@ -121,6 +121,16 @@ describe('Sécurité production — demandes de renseignements SUR_PIECES', () =
     }));
   });
 
+  it('refuse la lecture au contrôleur désigné mais hors du bureau de la mission', () => {
+    assertDenied(() => assertCanReadControle(user({ bureau_id: IDS.autreBureau }), {
+      type_controle: 'SUR_PIECES',
+      controleur_responsable_id: IDS.controleur,
+      mission_bureau_id: IDS.bureau,
+      equipe_chef_id: null,
+      user_agent_id: null,
+    }));
+  });
+
   it('autorise la lecture du contrôle SUR_PIECES au contrôleur désigné', () => {
     assert.doesNotThrow(() => assertCanReadControle(user(), {
       type_controle: 'SUR_PIECES',

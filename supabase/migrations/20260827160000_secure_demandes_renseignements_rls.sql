@@ -21,7 +21,10 @@ ON demandes_renseignements FOR SELECT TO authenticated USING (
         WHERE c.id = demandes_renseignements.controle_id
           AND c.type_controle = 'SUR_PIECES'
           AND (
-              c.controleur_responsable_id = auth_user_profile_id()
+              (
+                  c.controleur_responsable_id = auth_user_profile_id()
+                  AND m.bureau_id = auth_user_bureau_id()
+              )
               OR auth_user_role() = 'DIRECTEUR_GENERAL'
               OR (
                   auth_user_role() IN ('CHEF_BUREAU', 'CHEF_SECTION', 'ANALYSTE', 'CONSULTATION')
@@ -97,9 +100,11 @@ ON audit_logs FOR SELECT TO authenticated USING (
         SELECT 1
         FROM demandes_renseignements dr
         JOIN controles c ON c.id = dr.controle_id
+        JOIN missions m ON m.id = c.mission_id
         WHERE dr.id = audit_logs.entity_id
           AND c.type_controle = 'SUR_PIECES'
           AND c.controleur_responsable_id = auth_user_profile_id()
+          AND m.bureau_id = auth_user_bureau_id()
     )
 );
 
@@ -114,7 +119,12 @@ ON controles FOR SELECT TO authenticated USING (
         WHERE p.auth_user_id = auth.uid() AND p.actif = true
     )
     AND (
-        controleur_responsable_id = auth_user_profile_id()
+        (
+            controleur_responsable_id = auth_user_profile_id()
+            AND mission_id IN (
+                SELECT m.id FROM missions m WHERE m.bureau_id = auth_user_bureau_id()
+            )
+        )
         OR equipe_id IN (
             SELECT eq.id FROM equipes eq
             JOIN equipe_agents ea ON ea.equipe_id = eq.id
