@@ -49,6 +49,8 @@ export const CurrentUserSchema = z.object({
   bureau_id: z.string().uuid().nullable().optional(),
   division_id: z.string().uuid().nullable().optional(),
   is_active: z.boolean(),
+  nom: z.string().optional().nullable(),
+  prenom: z.string().optional().nullable(),
 });
 
 export type CurrentUser = z.infer<typeof CurrentUserSchema>;

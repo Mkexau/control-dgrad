@@ -29,6 +29,8 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
       id,
       role,
       actif,
+      nom,
+      prenom,
       bureau_id,
       bureaux (
         division_id
@@ -56,6 +58,8 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     bureau_id: profile.bureau_id,
     division_id: divisionId,
     is_active: profile.actif,
+    nom: (profile as unknown as { nom?: string | null }).nom ?? null,
+    prenom: (profile as unknown as { prenom?: string | null }).prenom ?? null,
   };
 
   const parsedUser = CurrentUserSchema.safeParse(rawUser);
