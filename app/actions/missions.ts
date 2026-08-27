@@ -753,16 +753,33 @@ export async function designateControleur(
       mission.bureau_id
     );
 
-    // 1. Créer les lignes de contrôles opérationnels pour chaque assujetti avec le contrôleur désigné
+    // 1. Créer ou mettre à jour les lignes de contrôles opérationnels pour chaque assujetti avec le contrôleur désigné
     const assujettis = (mission.mission_assujettis as unknown as { assujetti_id: string }[]) || [];
     for (const ass of assujettis) {
-      await adminSupabase.from('controles').insert({
-        mission_id: mission.id,
-        assujetti_id: ass.assujetti_id,
-        type_controle: 'SUR_PIECES',
-        controleur_responsable_id: parsed.data.controleur_id,
-        statut: 'EN_ATTENTE',
-      });
+      const { data: existingCtrl } = await adminSupabase
+        .from('controles')
+        .select('id')
+        .eq('mission_id', mission.id)
+        .eq('assujetti_id', ass.assujetti_id)
+        .maybeSingle();
+
+      if (existingCtrl) {
+        await adminSupabase
+          .from('controles')
+          .update({
+            controleur_responsable_id: parsed.data.controleur_id,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingCtrl.id);
+      } else {
+        await adminSupabase.from('controles').insert({
+          mission_id: mission.id,
+          assujetti_id: ass.assujetti_id,
+          type_controle: 'SUR_PIECES',
+          controleur_responsable_id: parsed.data.controleur_id,
+          statut: 'EN_ATTENTE',
+        });
+      }
     }
 
     // 2. Mettre à jour la mission

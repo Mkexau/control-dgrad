@@ -23,6 +23,11 @@ import {
   deletePenalite,
 } from '@/app/actions/results';
 import { getMissionDocumentDownloadUrl } from '@/app/actions/missions';
+import {
+  creerDemandeRenseignements,
+  enregistrerReponseDemandeRenseignements,
+  relancerDemandeRenseignements,
+} from '@/app/actions/demandes-renseignements';
 
 export interface RedressementData {
   id: string;
@@ -122,6 +127,17 @@ export interface ControleDetailData {
   resultats_controle?: ResultatControleData[] | ResultatControleData | null;
 }
 
+export interface DemandeRenseignementsData {
+  id: string;
+  statut: string;
+  date_envoi: string;
+  date_limite?: string | null;
+  date_reponse?: string | null;
+  contenu: string;
+  created_at: string;
+  auteur?: { nom: string; prenom: string } | null;
+}
+
 interface ControleDetailClientProps {
   controle: ControleDetailData;
   currentUser: CurrentUser;
@@ -134,6 +150,7 @@ interface ControleDetailClientProps {
     new_data?: Record<string, unknown> | null;
     profiles?: { nom: string; prenom: string; email: string; role: string } | null;
   }[];
+  demandesRenseignements?: DemandeRenseignementsData[];
 }
 
 export function ControleDetailClient({
@@ -141,6 +158,7 @@ export function ControleDetailClient({
   currentUser,
   userAgentId,
   auditLogs,
+  demandesRenseignements = [],
 }: ControleDetailClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -186,6 +204,13 @@ export function ControleDetailClient({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isDownloadingDoc, setIsDownloadingDoc] = useState(false);
+
+  // États pour les demandes de renseignements
+  const [demandesLocales, setDemandesLocales] = useState<DemandeRenseignementsData[]>(demandesRenseignements);
+  const [demandeContenu, setDemandeContenu] = useState('');
+  const [demandeDateLimite, setDemandeDateLimite] = useState('');
+  const [isSubmittingDemande, setIsSubmittingDemande] = useState(false);
+  const [demandeError, setDemandeError] = useState<string | null>(null);
 
   // Vérifier si l'utilisateur est le chef d'équipe ou le contrôleur responsable
   const isChefEquipe =
@@ -1133,6 +1158,166 @@ export function ControleDetailClient({
                       <span>Générer l&apos;Avis de Recouvrement</span>
                     </button>
                   )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Section Demandes de Renseignements (SUR_PIECES) */}
+          {controle.type_controle === 'SUR_PIECES' && (
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-xs">
+              <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+                <div className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                  Demandes de Pièces &amp; Renseignements ({demandesLocales.length})
+                </div>
+              </div>
+
+              {/* Formulaire de nouvelle demande */}
+              {canExecute && (controle.statut === 'EN_COURS' || controle.statut === 'EN_ATTENTE') && (
+                <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/20 space-y-3">
+                  <p className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">
+                    Émettre une demande de renseignements ou de pièces complémentaires
+                  </p>
+                  {demandeError && (
+                    <div className="p-2.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg text-xs text-red-700 dark:text-red-300">
+                      {demandeError}
+                    </div>
+                  )}
+                  <textarea
+                    value={demandeContenu}
+                    onChange={(e) => setDemandeContenu(e.target.value)}
+                    placeholder="Libellé de la demande ou pièces requises (min. 10 caractères)..."
+                    rows={3}
+                    className="w-full px-3 py-2 text-xs border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-lg resize-none focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <div className="flex items-center gap-2 flex-1">
+                      <label className="text-xs text-zinc-500 shrink-0">Date limite :</label>
+                      <input
+                        type="date"
+                        value={demandeDateLimite}
+                        onChange={(e) => setDemandeDateLimite(e.target.value)}
+                        className="flex-1 px-3 py-1.5 text-xs border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      disabled={isSubmittingDemande || demandeContenu.trim().length < 10}
+                      onClick={async () => {
+                        setIsSubmittingDemande(true);
+                        setDemandeError(null);
+                        const res = await creerDemandeRenseignements({
+                          controle_id: controle.id,
+                          assujetti_id: controle.assujetti_id,
+                          contenu: demandeContenu.trim(),
+                          date_limite: demandeDateLimite || undefined,
+                        });
+                        setIsSubmittingDemande(false);
+                        if (res.success) {
+                          setDemandeContenu('');
+                          setDemandeDateLimite('');
+                          setDemandesLocales((prev) => [{
+                            id: res.data?.id || crypto.randomUUID(),
+                            statut: 'EN_ATTENTE',
+                            date_envoi: new Date().toISOString().split('T')[0],
+                            date_limite: demandeDateLimite || null,
+                            date_reponse: null,
+                            contenu: demandeContenu.trim(),
+                            created_at: new Date().toISOString(),
+                            auteur: { nom: currentUser.nom || '', prenom: currentUser.prenom || '' },
+                          }, ...prev]);
+                        } else {
+                          setDemandeError(res.error || 'Erreur lors de l\'émission de la demande.');
+                        }
+                      }}
+                      className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg transition-colors"
+                    >
+                      {isSubmittingDemande ? 'Envoi...' : 'Émettre la demande'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Liste des demandes */}
+              {demandesLocales.length === 0 ? (
+                <div className="p-6 text-center text-xs text-zinc-400">
+                  Aucune demande de renseignements émise pour l&apos;instant.
+                </div>
+              ) : (
+                <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                  {demandesLocales.map((dr) => (
+                    <div key={dr.id} className="p-4 space-y-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1 flex-1">
+                          <div className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
+                            {dr.contenu}
+                          </div>
+                          <div className="flex flex-wrap gap-3 text-[11px] text-zinc-400 font-mono">
+                            <span>Émise le {new Date(dr.date_envoi).toLocaleDateString('fr-FR')}</span>
+                            {dr.date_limite && (
+                              <span className="text-amber-600 dark:text-amber-400">
+                                Limite : {new Date(dr.date_limite).toLocaleDateString('fr-FR')}
+                              </span>
+                            )}
+                            {dr.date_reponse && (
+                              <span className="text-emerald-600 dark:text-emerald-400">
+                                Répondu le {new Date(dr.date_reponse).toLocaleDateString('fr-FR')}
+                              </span>
+                            )}
+                            {dr.auteur && (
+                              <span>par {dr.auteur.nom} {dr.auteur.prenom}</span>
+                            )}
+                          </div>
+                        </div>
+                        <span className={`shrink-0 px-2 py-0.5 rounded text-[10px] font-bold font-mono uppercase ${
+                          dr.statut === 'REPONDU' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' :
+                          dr.statut === 'RELANCE' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' :
+                          'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+                        }`}>
+                          {dr.statut.replace('_', ' ')}
+                        </span>
+                      </div>
+                      {/* Actions rapides sur la demande */}
+                      {canExecute && dr.statut !== 'REPONDU' && (
+                        <div className="flex gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const today = new Date().toISOString().split('T')[0];
+                              const res = await enregistrerReponseDemandeRenseignements({
+                                demande_id: dr.id,
+                                date_reponse: today,
+                              });
+                              if (res.success) {
+                                setDemandesLocales((prev) => prev.map((d) =>
+                                  d.id === dr.id ? { ...d, statut: 'REPONDU', date_reponse: today } : d
+                                ));
+                              }
+                            }}
+                            className="px-3 py-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors"
+                          >
+                            Marquer répondu
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const res = await relancerDemandeRenseignements({
+                                demande_id: dr.id,
+                              });
+                              if (res.success) {
+                                setDemandesLocales((prev) => prev.map((d) =>
+                                  d.id === dr.id ? { ...d, statut: 'RELANCE' } : d
+                                ));
+                              }
+                            }}
+                            className="px-3 py-1 text-[11px] font-bold text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors"
+                          >
+                            Relancer
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

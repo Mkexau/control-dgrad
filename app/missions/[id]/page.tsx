@@ -58,6 +58,10 @@ export default async function MissionDetailPage({
       ),
       autorisations_controle_pieces(
         id, reference, storage_path, date_generation
+      ),
+      controles(
+        id, assujetti_id, statut, type_controle, controleur_responsable_id,
+        profiles!controles_controleur_responsable_id_fkey(nom, prenom)
       )
     `)
     .eq('id', id)

@@ -89,12 +89,23 @@ export default async function ControleDetailPage({ params }: ControleDetailPageP
     .eq('entity_id', controle.id)
     .order('created_at', { ascending: false });
 
+  // 4. Charger les demandes de renseignements du contrôle
+  const { data: demandesRenseignements } = await supabase
+    .from('demandes_renseignements')
+    .select(`
+      id, statut, date_envoi, date_limite, date_reponse, contenu, created_at,
+      auteur:profiles!demandes_renseignements_auteur_id_fkey(nom, prenom)
+    `)
+    .eq('controle_id', controle.id)
+    .order('created_at', { ascending: false });
+
   return (
     <ControleDetailClient
       controle={controle as unknown as never}
       currentUser={currentUser}
       userAgentId={userAgent?.id || null}
       auditLogs={(auditLogs as unknown as never[]) || []}
+      demandesRenseignements={(demandesRenseignements as unknown as never[]) || []}
     />
   );
 }
