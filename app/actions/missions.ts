@@ -516,13 +516,38 @@ export async function decideDG(
       // 5. Générer l'ordre de mission
       const docResult = await generateAndStoreOrdreMission(ordreMissionPayload);
 
-      // 6. Passer à EQUIPES_AFFECTEES
+      // 6. Initialiser les contrôles opérationnels pour chaque assujetti rattaché à chaque équipe confirmée
+      for (const eq of equipes || []) {
+        const assujettisForEquipe = (eq.equipe_assujettis as unknown as { assujetti_id: string }[]) || [];
+        for (const ass of assujettisForEquipe) {
+          // Vérifier s'il existe déjà pour éviter doublon
+          const { data: existingCtrl } = await adminSupabase
+            .from('controles')
+            .select('id')
+            .eq('mission_id', mission.id)
+            .eq('equipe_id', eq.id)
+            .eq('assujetti_id', ass.assujetti_id)
+            .maybeSingle();
+
+          if (!existingCtrl) {
+            await adminSupabase.from('controles').insert({
+              mission_id: mission.id,
+              equipe_id: eq.id,
+              assujetti_id: ass.assujetti_id,
+              type_controle: 'SUR_PLACE',
+              statut: 'EN_ATTENTE',
+            });
+          }
+        }
+      }
+
+      // 7. Passer à EQUIPES_AFFECTEES
       await adminSupabase
         .from('missions')
         .update({ statut: 'EQUIPES_AFFECTEES' })
         .eq('id', mission.id);
 
-      // 7. Audit
+      // 8. Audit
       await logAuditEvent({
         userId: currentUser.id,
         action: 'APPROBATION_DG',

@@ -177,3 +177,73 @@ export function ValidationDecisionBadge({ statut }: { statut: ValidationStatus }
     </span>
   );
 }
+
+export function EquipeStatusBadge({ statut }: { statut: 'PROPOSEE' | 'CONFIRMEE' | 'ANNULEE' | string }) {
+  switch (statut) {
+    case 'PROPOSEE':
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+          Proposée
+        </span>
+      );
+    case 'CONFIRMEE':
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          Confirmée
+        </span>
+      );
+    case 'ANNULEE':
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-500 border border-zinc-200 dark:border-zinc-800 line-through">
+          Annulée
+        </span>
+      );
+    default:
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">
+          {statut}
+        </span>
+      );
+  }
+}
+
+export function ControleStatusBadge({ statut }: { statut: 'EN_ATTENTE' | 'EN_COURS' | 'TERMINE' | 'ANNULE' | string }) {
+  switch (statut) {
+    case 'EN_ATTENTE':
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700">
+          <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
+          En attente
+        </span>
+      );
+    case 'EN_COURS':
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-800 dark:bg-blue-950/60 dark:text-blue-200 border border-blue-200 dark:border-blue-800">
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+          En cours
+        </span>
+      );
+    case 'TERMINE':
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          Terminé
+        </span>
+      );
+    case 'ANNULE':
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-500 border border-zinc-200 dark:border-zinc-800 line-through">
+          Annulé
+        </span>
+      );
+    default:
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">
+          {statut}
+        </span>
+      );
+  }
+}
+

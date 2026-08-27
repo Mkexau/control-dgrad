@@ -448,9 +448,17 @@ export function MissionDetailClient({
       {/* Équipes pour SUR_PLACE */}
       {mission.type_controle === 'SUR_PLACE' && mission.equipes && (
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-xs space-y-4">
-          <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
-            Équipes de Terrain ({mission.equipes.length})
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+              Équipes de Terrain ({mission.equipes.length})
+            </h2>
+            <Link
+              href="/equipes"
+              className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              Gérer les équipes →
+            </Link>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {mission.equipes.map((eq) => (
               <div
@@ -458,8 +466,16 @@ export function MissionDetailClient({
                 className="p-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-xl space-y-3"
               >
                 <div className="flex items-center justify-between pb-2 border-b border-zinc-200 dark:border-zinc-700">
-                  <span className="font-bold text-sm text-zinc-900 dark:text-zinc-100">{eq.nom}</span>
-                  <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200">
+                  <Link
+                    href={`/equipes/${eq.id}`}
+                    className="font-bold text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1.5"
+                  >
+                    <span>{eq.nom}</span>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </Link>
+                  <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-bold">
                     {eq.statut}
                   </span>
                 </div>
