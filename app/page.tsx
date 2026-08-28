@@ -7,8 +7,9 @@ export default async function HomePage() {
   const currentUser = await getCurrentUser();
 
   if (currentUser) {
-    redirect('/missions');
+    redirect('/dashboard');
   } else {
     redirect('/connexion');
   }
 }
+
