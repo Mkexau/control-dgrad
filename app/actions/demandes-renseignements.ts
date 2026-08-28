@@ -23,6 +23,12 @@ export interface ActionResponse<T = unknown> {
   error?: string;
 }
 
+function addCalendarDays(date: string, days: number): string {
+  const value = new Date(`${date}T00:00:00.000Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
 /**
  * 1. Créer et émettre une demande de pièces ou renseignements
  */
@@ -71,6 +77,13 @@ export async function creerDemandeRenseignements(
     } as ControleDemandeScope, 'CREATION');
 
     const effectiveDateEnvoi = date_envoi || new Date().toISOString().split('T')[0];
+    const effectiveDateLimite = addCalendarDays(effectiveDateEnvoi, 20);
+    if (date_limite && date_limite !== effectiveDateLimite) {
+      return {
+        success: false,
+        error: 'Le délai de réponse est fixé à 20 jours calendaires après l’envoi.',
+      };
+    }
 
     // 3. Insérer la demande
     const { data: newDemande, error: insErr } = await supabase
@@ -80,7 +93,7 @@ export async function creerDemandeRenseignements(
         assujetti_id,
         auteur_id: currentUser.id,
         date_envoi: effectiveDateEnvoi,
-        date_limite: date_limite || null,
+        date_limite: effectiveDateLimite,
         statut: 'EN_ATTENTE',
         contenu,
       })
@@ -88,7 +101,7 @@ export async function creerDemandeRenseignements(
       .single();
 
     if (insErr || !newDemande) {
-      return { success: false, error: `Erreur enregistrement demande : ${insErr?.message}` };
+      return { success: false, error: 'Impossible d’enregistrer la demande de renseignements.' };
     }
 
     // 4. Audit
@@ -101,7 +114,7 @@ export async function creerDemandeRenseignements(
         controle_id,
         assujetti_id,
         date_envoi: effectiveDateEnvoi,
-        date_limite: date_limite || null,
+        date_limite: effectiveDateLimite,
         contenu,
       },
     });
@@ -153,17 +166,21 @@ export async function enregistrerReponseDemandeRenseignements(
     if (!controle) return { success: false, error: 'Contrôle associé introuvable.' };
     assertCanManageDemandeRenseignements(currentUser, { ...controle, mission } as ControleDemandeScope, 'REPONSE', demande.statut);
 
-    const { error: updErr } = await supabase
+    const { data: updatedDemande, error: updErr } = await supabase
       .from('demandes_renseignements')
       .update({
         date_reponse,
+        reponse_contenu: commentaire,
         statut: 'REPONDU',
         updated_at: new Date().toISOString(),
       })
-      .eq('id', demande_id);
+      .eq('id', demande_id)
+      .eq('statut', demande.statut)
+      .select('id')
+      .maybeSingle();
 
-    if (updErr) {
-      return { success: false, error: `Erreur mise à jour réponse : ${updErr.message}` };
+    if (updErr || !updatedDemande) {
+      return { success: false, error: 'Cette demande a déjà été traitée ou ne peut plus recevoir de réponse.' };
     }
 
     await supabase.from('audit_logs').insert({
@@ -201,6 +218,12 @@ export async function relancerDemandeRenseignements(
     }
 
     const { demande_id, nouvelle_date_limite, motif_relance } = parsed.data;
+    if (nouvelle_date_limite) {
+      return {
+        success: false,
+        error: 'La prolongation du délai de réponse n’est pas définie par les règles métier.',
+      };
+    }
     const supabase = await createClient();
 
     const { data: demande, error: getErr } = await supabase
@@ -218,21 +241,21 @@ export async function relancerDemandeRenseignements(
     if (!controle) return { success: false, error: 'Contrôle associé introuvable.' };
     assertCanManageDemandeRenseignements(currentUser, { ...controle, mission } as ControleDemandeScope, 'RELANCE', demande.statut);
 
-    const updatePayload: Record<string, unknown> = {
+    const updatePayload = {
       statut: 'RELANCE',
       updated_at: new Date().toISOString(),
     };
-    if (nouvelle_date_limite) {
-      updatePayload.date_limite = nouvelle_date_limite;
-    }
 
-    const { error: updErr } = await supabase
+    const { data: updatedDemande, error: updErr } = await supabase
       .from('demandes_renseignements')
       .update(updatePayload)
-      .eq('id', demande_id);
+      .eq('id', demande_id)
+      .eq('statut', demande.statut)
+      .select('id')
+      .maybeSingle();
 
-    if (updErr) {
-      return { success: false, error: `Erreur relance : ${updErr.message}` };
+    if (updErr || !updatedDemande) {
+      return { success: false, error: 'Cette demande a déjà été traitée ou ne peut plus être relancée.' };
     }
 
     await supabase.from('audit_logs').insert({

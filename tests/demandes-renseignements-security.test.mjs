@@ -63,6 +63,17 @@ describe('Sécurité production — demandes de renseignements SUR_PIECES', () =
     assert.match(migration, /DROP POLICY IF EXISTS "Lecture des contrôles selon affectation et périmètre" ON controles/);
   });
 
+  it('impose le délai réglementaire, la réponse conservée et les transitions ouvertes par RLS', () => {
+    const migration = readFileSync(
+      new URL('../supabase/migrations/20260827170000_finalize_demandes_renseignements.sql', import.meta.url),
+      'utf8'
+    );
+    assert.match(migration, /ADD COLUMN IF NOT EXISTS reponse_contenu TEXT/);
+    assert.match(migration, /date_limite = \(date_envoi \+ 20\)/);
+    assert.match(migration, /statut IN \('EN_ATTENTE', 'RELANCE'\)/);
+    assert.match(migration, /statut IN \('REPONDU', 'RELANCE'\)/);
+  });
+
   it('refuse un utilisateur non authentifié', () => {
     assertDenied(() => assertCanManageDemandeRenseignements(null, controle(), 'CREATION'), UnauthorizedError);
   });

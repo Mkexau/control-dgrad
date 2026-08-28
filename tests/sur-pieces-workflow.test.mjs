@@ -61,8 +61,18 @@ describe('Étape 9 — Workflow SUR_PIECES : Demandes de Renseignements & Workfl
       const result = DemandeRenseignementsReponseSchema.safeParse({
         demande_id: VALID_UUID,
         date_reponse: '2026-09-15',
+        commentaire: 'Les relevés bancaires demandés ont été remis au contrôleur.',
       });
       assert.equal(result.success, true);
+    });
+
+    it('DemandeRenseignementsReponseSchema : refuse une réponse sans contenu conservable', () => {
+      const result = DemandeRenseignementsReponseSchema.safeParse({
+        demande_id: VALID_UUID,
+        date_reponse: '2026-09-15',
+        commentaire: '   ',
+      });
+      assert.equal(result.success, false);
     });
 
     it('DemandeRenseignementsRelanceSchema : valide une relance avec nouvelle date limite', () => {
@@ -77,8 +87,16 @@ describe('Étape 9 — Workflow SUR_PIECES : Demandes de Renseignements & Workfl
     it('DemandeRenseignementsRelanceSchema : valide une relance sans nouvelle date', () => {
       const result = DemandeRenseignementsRelanceSchema.safeParse({
         demande_id: VALID_UUID,
+        motif_relance: 'Les éléments demandés ne sont pas encore parvenus au dossier.',
       });
       assert.equal(result.success, true);
+    });
+
+    it('DemandeRenseignementsRelanceSchema : refuse une relance sans motif', () => {
+      const result = DemandeRenseignementsRelanceSchema.safeParse({
+        demande_id: VALID_UUID,
+      });
+      assert.equal(result.success, false);
     });
 
   });

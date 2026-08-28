@@ -134,6 +134,7 @@ export interface DemandeRenseignementsData {
   date_limite?: string | null;
   date_reponse?: string | null;
   contenu: string;
+  reponse_contenu?: string | null;
   created_at: string;
   auteur?: { nom: string; prenom: string } | null;
 }
@@ -206,10 +207,11 @@ export function ControleDetailClient({
   const [isDownloadingDoc, setIsDownloadingDoc] = useState(false);
 
   // États pour les demandes de renseignements
-  const [demandesLocales, setDemandesLocales] = useState<DemandeRenseignementsData[]>(demandesRenseignements);
   const [demandeContenu, setDemandeContenu] = useState('');
-  const [demandeDateLimite, setDemandeDateLimite] = useState('');
   const [isSubmittingDemande, setIsSubmittingDemande] = useState(false);
+  const [demandeActionId, setDemandeActionId] = useState<string | null>(null);
+  const [reponseDrafts, setReponseDrafts] = useState<Record<string, string>>({});
+  const [relanceDrafts, setRelanceDrafts] = useState<Record<string, string>>({});
   const [demandeError, setDemandeError] = useState<string | null>(null);
 
   // Vérifier si l'utilisateur est le chef d'équipe ou le contrôleur responsable
@@ -1175,7 +1177,7 @@ export function ControleDetailClient({
             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-xs">
               <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
                 <div className="text-xs font-bold uppercase tracking-wider text-zinc-500">
-                  Demandes de Pièces &amp; Renseignements ({demandesLocales.length})
+                  Demandes de Pièces &amp; Renseignements ({demandesRenseignements.length})
                 </div>
               </div>
 
@@ -1198,15 +1200,9 @@ export function ControleDetailClient({
                     className="w-full px-3 py-2 text-xs border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-lg resize-none focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                   <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                    <div className="flex items-center gap-2 flex-1">
-                      <label className="text-xs text-zinc-500 shrink-0">Date limite :</label>
-                      <input
-                        type="date"
-                        value={demandeDateLimite}
-                        onChange={(e) => setDemandeDateLimite(e.target.value)}
-                        className="flex-1 px-3 py-1.5 text-xs border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      />
-                    </div>
+                    <p className="flex-1 text-[11px] text-zinc-500">
+                      L’échéance est fixée automatiquement à 20 jours calendaires après l’émission.
+                    </p>
                     <button
                       type="button"
                       disabled={isSubmittingDemande || demandeContenu.trim().length < 10}
@@ -1217,22 +1213,11 @@ export function ControleDetailClient({
                           controle_id: controle.id,
                           assujetti_id: controle.assujetti_id,
                           contenu: demandeContenu.trim(),
-                          date_limite: demandeDateLimite || undefined,
                         });
                         setIsSubmittingDemande(false);
                         if (res.success) {
                           setDemandeContenu('');
-                          setDemandeDateLimite('');
-                          setDemandesLocales((prev) => [{
-                            id: res.data?.id || crypto.randomUUID(),
-                            statut: 'EN_ATTENTE',
-                            date_envoi: new Date().toISOString().split('T')[0],
-                            date_limite: demandeDateLimite || null,
-                            date_reponse: null,
-                            contenu: demandeContenu.trim(),
-                            created_at: new Date().toISOString(),
-                            auteur: { nom: currentUser.nom || '', prenom: currentUser.prenom || '' },
-                          }, ...prev]);
+                          router.refresh();
                         } else {
                           setDemandeError(res.error || 'Erreur lors de l\'émission de la demande.');
                         }
@@ -1246,13 +1231,13 @@ export function ControleDetailClient({
               )}
 
               {/* Liste des demandes */}
-              {demandesLocales.length === 0 ? (
+              {demandesRenseignements.length === 0 ? (
                 <div className="p-6 text-center text-xs text-zinc-400">
                   Aucune demande de renseignements émise pour l&apos;instant.
                 </div>
               ) : (
                 <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                  {demandesLocales.map((dr) => (
+                  {demandesRenseignements.map((dr) => (
                     <div key={dr.id} className="p-4 space-y-2">
                       <div className="flex items-start justify-between gap-3">
                         <div className="space-y-1 flex-1">
@@ -1275,6 +1260,11 @@ export function ControleDetailClient({
                               <span>par {dr.auteur.nom} {dr.auteur.prenom}</span>
                             )}
                           </div>
+                          {dr.reponse_contenu && (
+                            <div className="rounded-lg border border-emerald-100 bg-emerald-50/50 p-2 text-xs text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100">
+                              <span className="font-bold">Réponse reçue : </span>{dr.reponse_contenu}
+                            </div>
+                          )}
                         </div>
                         <span className={`shrink-0 px-2 py-0.5 rounded text-[10px] font-bold font-mono uppercase ${
                           dr.statut === 'REPONDU' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' :
@@ -1286,41 +1276,69 @@ export function ControleDetailClient({
                       </div>
                       {/* Actions rapides sur la demande */}
                       {canManageDemandesRenseignements && (dr.statut === 'EN_ATTENTE' || dr.statut === 'RELANCE') && (
-                        <div className="flex gap-2 pt-1">
+                        <div className="space-y-2 pt-1">
+                          <textarea
+                            value={reponseDrafts[dr.id] || ''}
+                            onChange={(event) => setReponseDrafts((previous) => ({ ...previous, [dr.id]: event.target.value }))}
+                            placeholder="Contenu de la réponse reçue…"
+                            rows={2}
+                            className="w-full px-3 py-2 text-xs border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-lg resize-none focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                          />
+                          <textarea
+                            value={relanceDrafts[dr.id] || ''}
+                            onChange={(event) => setRelanceDrafts((previous) => ({ ...previous, [dr.id]: event.target.value }))}
+                            placeholder="Motif de la relance…"
+                            rows={2}
+                            className="w-full px-3 py-2 text-xs border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-lg resize-none focus:outline-none focus:ring-1 focus:ring-amber-500"
+                          />
+                          <div className="flex gap-2">
                           <button
                             type="button"
+                            disabled={demandeActionId === dr.id || !(reponseDrafts[dr.id] || '').trim()}
                             onClick={async () => {
                               const today = new Date().toISOString().split('T')[0];
+                              setDemandeActionId(dr.id);
+                              setDemandeError(null);
                               const res = await enregistrerReponseDemandeRenseignements({
                                 demande_id: dr.id,
                                 date_reponse: today,
+                                commentaire: (reponseDrafts[dr.id] || '').trim(),
                               });
+                              setDemandeActionId(null);
                               if (res.success) {
-                                setDemandesLocales((prev) => prev.map((d) =>
-                                  d.id === dr.id ? { ...d, statut: 'REPONDU', date_reponse: today } : d
-                                ));
+                                setReponseDrafts((previous) => ({ ...previous, [dr.id]: '' }));
+                                router.refresh();
+                              } else {
+                                setDemandeError(res.error || 'Erreur lors de l’enregistrement de la réponse.');
                               }
                             }}
-                            className="px-3 py-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors"
+                            className="px-3 py-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/30 disabled:opacity-50 transition-colors"
                           >
                             Marquer répondu
                           </button>
                           <button
                             type="button"
+                            disabled={demandeActionId === dr.id || !(relanceDrafts[dr.id] || '').trim()}
                             onClick={async () => {
+                              setDemandeActionId(dr.id);
+                              setDemandeError(null);
                               const res = await relancerDemandeRenseignements({
                                 demande_id: dr.id,
+                                motif_relance: (relanceDrafts[dr.id] || '').trim(),
                               });
+                              setDemandeActionId(null);
                               if (res.success) {
-                                setDemandesLocales((prev) => prev.map((d) =>
-                                  d.id === dr.id ? { ...d, statut: 'RELANCE' } : d
-                                ));
+                                setRelanceDrafts((previous) => ({ ...previous, [dr.id]: '' }));
+                                router.refresh();
+                              } else {
+                                setDemandeError(res.error || 'Erreur lors de la relance.');
                               }
                             }}
-                            className="px-3 py-1 text-[11px] font-bold text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors"
+                            className="px-3 py-1 text-[11px] font-bold text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/30 disabled:opacity-50 transition-colors"
                           >
                             Relancer
                           </button>
+                          </div>
                         </div>
                       )}
                     </div>

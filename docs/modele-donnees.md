@@ -366,6 +366,7 @@ Le modèle utilise des types énumérés stricts pour garantir l'intégrité et 
 | `date_envoi` | DATE | NON | DEFAULT current_date | Date d'émission de la demande |
 | `date_limite` | DATE | OUI | | Date limite de réponse accordée |
 | `date_reponse` | DATE | OUI | | Date de réception de la réponse |
+| `reponse_contenu` | TEXT | OUI | | Contenu de la réponse reçue ; obligatoire lorsque le statut est `REPONDU` |
 | `statut` | TEXT | NON | DEFAULT 'EN_ATTENTE' | État (`EN_ATTENTE`, `REPONDU`, `RELANCE`) |
 | `contenu` | TEXT | NON | | Détail des pièces/renseignements demandés |
 | `created_at` | TIMESTAMPTZ | NON | DEFAULT now() | Date de création |
@@ -610,4 +611,4 @@ Pour optimiser les performances des requêtes métier, les jointures et l'applic
 
 ## 21. Synthèse de validation pour la future migration
 
-Le présent modèle relationnel est complet, normalisé en 3NF, strictement typé avec des enums, protégé par des contraintes `CHECK` sur les montants financiers (`NUMERIC(18,2)`), intègre les règles d'intégrité `ON DELETE RESTRICT` et fournit les associations nécessaires pour les deux parcours (`SUR_PLACE` et `SUR_PIECES`).
+Le présent modèle relationnel est complet, normalisé en 3NF, strictement typé avec des enums, protégé par des contraintes `CHECK` sur les montants financiers (`NUMERIC(18,2)`), intègre les règles d'intégrité `ON DELETE RESTRICT` et fournit les associations nécessaires pour les deux parcours (`SUR_PLACE` et `SUR_PIECES`).

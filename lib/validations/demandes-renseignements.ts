@@ -41,7 +41,10 @@ export const DemandeRenseignementsReponseSchema = z.object({
   date_reponse: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format de date de réponse invalide (AAAA-MM-JJ).'),
-  commentaire: z.string().trim().optional().nullable(),
+  commentaire: z
+    .string()
+    .trim()
+    .min(1, 'Le contenu de la réponse est obligatoire.'),
 });
 export type DemandeRenseignementsReponseInput = z.infer<typeof DemandeRenseignementsReponseSchema>;
 
@@ -55,6 +58,6 @@ export const DemandeRenseignementsRelanceSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format de nouvelle date limite invalide (AAAA-MM-JJ).')
     .optional()
     .nullable(),
-  motif_relance: z.string().trim().optional().nullable(),
+  motif_relance: z.string().trim().min(1, 'Le motif de la relance est obligatoire.'),
 });
 export type DemandeRenseignementsRelanceInput = z.infer<typeof DemandeRenseignementsRelanceSchema>;

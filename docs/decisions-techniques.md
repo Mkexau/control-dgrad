@@ -820,3 +820,13 @@ Statut : VALIDÉ
 
 Les guards purs de sécurité sont importés directement dans les tests Node natifs. `allowImportingTsExtensions` est activé car le projet n’émet pas de JavaScript via TypeScript ; les Server Actions et les tests appellent ainsi la même logique d’autorisation.
 
+---
+
+## ADR-039 — Persistance et idempotence des demandes de renseignements
+
+Statut : VALIDÉ
+
+La réponse reçue est conservée dans `demandes_renseignements.reponse_contenu` et chaque création, réponse ou relance produit un événement dans `audit_logs`. Les transitions applicatives utilisent un filtre sur le statut lu afin qu'une requête concurrente ne puisse pas appliquer une deuxième transition après que la première a abouti.
+
+Le délai de vingt jours calendaires validé est calculé côté serveur depuis `date_envoi` puis confirmé par RLS. Une relance ne modifie pas l'échéance, faute de règle métier validée sur une prolongation.
+

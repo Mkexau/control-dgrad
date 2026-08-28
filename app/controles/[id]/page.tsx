@@ -101,7 +101,7 @@ export default async function ControleDetailPage({ params }: ControleDetailPageP
   const { data: demandesRenseignements } = await supabase
     .from('demandes_renseignements')
     .select(`
-      id, statut, date_envoi, date_limite, date_reponse, contenu, created_at,
+      id, statut, date_envoi, date_limite, date_reponse, contenu, reponse_contenu, created_at,
       auteur:profiles!demandes_renseignements_auteur_id_fkey(nom, prenom)
     `)
     .eq('controle_id', controle.id)
