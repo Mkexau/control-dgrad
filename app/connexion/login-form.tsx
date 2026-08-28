@@ -57,10 +57,13 @@ export function LoginForm({ redirectTarget }: LoginFormProps) {
       }
 
       if (data.session) {
-        // 3. Redirection sécurisée vers la destination interne validée
-        const safeDestination = getSafeRedirectUrl(redirectTarget, '/missions');
-        router.push(safeDestination);
+        // 3. Invalider le cache SSR pour que les cookies de session soient disponibles
+        //    côté serveur AVANT la navigation, puis rediriger.
+        //    router.refresh() doit précéder router.push() pour éviter que getCurrentUser()
+        //    reçoive une requête sans cookie valide au premier rendu serveur.
         router.refresh();
+        const safeDestination = getSafeRedirectUrl(redirectTarget, '/dashboard');
+        router.push(safeDestination);
       } else {
         setErrorMessage('Session non initialisée. Veuillez réessayer.');
         setIsLoading(false);

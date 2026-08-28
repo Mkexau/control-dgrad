@@ -26,7 +26,7 @@ export default async function ConnexionPage({ searchParams }: ConnexionPageProps
 
   if (currentUser) {
     // Si l'utilisateur est déjà authentifié, ne pas afficher le formulaire
-    const safeDestination = getSafeRedirectUrl(rawRedirect, '/missions');
+    const safeDestination = getSafeRedirectUrl(rawRedirect, '/dashboard');
     redirect(safeDestination);
   }
 
