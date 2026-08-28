@@ -191,3 +191,12 @@ export function formatAutorisationReference(seq: number, year: number = new Date
   const padded = String(seq).padStart(6, '0');
   return `AUT-${year}-${padded}`;
 }
+
+/**
+ * Générateur de référence pour le Rapport de mission : RAP-YYYY-NNNNNN
+ */
+export function formatRapportReference(seq: number, year: number = new Date().getFullYear()): string {
+  const padded = String(seq).padStart(6, '0');
+  return `RAP-${year}-${padded}`;
+}
+

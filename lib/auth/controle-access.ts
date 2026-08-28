@@ -109,3 +109,112 @@ export function assertCanReadControle(user: CurrentUser | null, controle: Contro
 
   throw new ForbiddenError('Vous n’êtes pas autorisé à consulter ce contrôle.');
 }
+
+export interface MissionRapportScope {
+  id: string;
+  type_controle: 'SUR_PLACE' | 'SUR_PIECES';
+  statut: string;
+  bureau_id: string;
+  equipes_chefs_ids?: string[];
+  controleurs_ids?: string[];
+}
+
+/**
+ * Autorise la rédaction et la mise à jour du rapport de mission selon le workflow et le périmètre.
+ */
+export function assertCanManageRapportMission(
+  user: CurrentUser | null,
+  mission: MissionRapportScope,
+  userAgentId?: string | null
+): CurrentUser {
+  const authenticatedUser = checkAuthenticated(user);
+
+  if (authenticatedUser.role === 'ADMIN') {
+    throw new ForbiddenError('L’administrateur technique ne peut pas rédiger ou gérer de rapport métier.');
+  }
+
+  if (authenticatedUser.role === 'DIRECTEUR_GENERAL') {
+    return authenticatedUser;
+  }
+
+  if (authenticatedUser.role === 'DIRECTEUR_CONTROLES' || authenticatedUser.role === 'CHEF_DIVISION') {
+    return authenticatedUser;
+  }
+
+  if (authenticatedUser.role === 'CHEF_BUREAU' && authenticatedUser.bureau_id === mission.bureau_id) {
+    return authenticatedUser;
+  }
+
+  if (mission.type_controle === 'SUR_PIECES') {
+    if (authenticatedUser.role === 'CHEF_SECTION' && authenticatedUser.bureau_id === mission.bureau_id) {
+      return authenticatedUser;
+    }
+    if (
+      authenticatedUser.role === 'CONTROLEUR' &&
+      authenticatedUser.bureau_id === mission.bureau_id &&
+      mission.controleurs_ids?.includes(authenticatedUser.id)
+    ) {
+      return authenticatedUser;
+    }
+  } else if (mission.type_controle === 'SUR_PLACE') {
+    if (
+      authenticatedUser.role === 'CHEF_EQUIPE' &&
+      userAgentId &&
+      mission.equipes_chefs_ids?.includes(userAgentId)
+    ) {
+      return authenticatedUser;
+    }
+  }
+
+  throw new ForbiddenError('Vous n’êtes pas habilité à rédiger ou modifier le rapport de cette mission.');
+}
+
+/**
+ * Autorise la consultation du dossier complet d'une mission.
+ */
+export function assertCanReadMissionDossier(
+  user: CurrentUser | null,
+  mission: MissionRapportScope,
+  userAgentId?: string | null
+): CurrentUser {
+  const authenticatedUser = checkAuthenticated(user);
+
+  if (authenticatedUser.role === 'ADMIN') {
+    throw new ForbiddenError('L’administrateur technique ne peut pas consulter un dossier de mission par défaut.');
+  }
+
+  if (['DIRECTEUR_GENERAL', 'DIRECTEUR_CONTROLES', 'CHEF_DIVISION'].includes(authenticatedUser.role)) {
+    return authenticatedUser;
+  }
+
+  if (
+    ['CHEF_BUREAU', 'CHEF_SECTION', 'ANALYSTE', 'CONSULTATION'].includes(authenticatedUser.role) &&
+    authenticatedUser.bureau_id === mission.bureau_id
+  ) {
+    return authenticatedUser;
+  }
+
+  if (mission.type_controle === 'SUR_PIECES') {
+    if (
+      authenticatedUser.role === 'CONTROLEUR' &&
+      authenticatedUser.bureau_id === mission.bureau_id &&
+      mission.controleurs_ids?.includes(authenticatedUser.id)
+    ) {
+      return authenticatedUser;
+    }
+  } else if (mission.type_controle === 'SUR_PLACE') {
+    if (
+      authenticatedUser.role === 'CHEF_EQUIPE' &&
+      userAgentId &&
+      mission.equipes_chefs_ids?.includes(userAgentId)
+    ) {
+      return authenticatedUser;
+    }
+    if (authenticatedUser.role === 'CONTROLEUR' && authenticatedUser.bureau_id === mission.bureau_id) {
+      return authenticatedUser;
+    }
+  }
+
+  throw new ForbiddenError('Vous n’êtes pas autorisé à consulter cette mission.');
+}
+

@@ -1,7 +1,7 @@
 'use client';
 
 // =============================================================================
-// DGRAD CONTROLE - VUE CLIENT DÉTAILLÉE DU DOSSIER DE MISSION
+// DGRAD CONTROLE - VUE CLIENT DÉTAILLÉE DU DOSSIER DE MISSION (ÉTAPE 11)
 // =============================================================================
 
 import React, { useState } from 'react';
@@ -20,6 +20,11 @@ import {
   resetRejectedMission,
   getMissionDocumentDownloadUrl,
 } from '@/app/actions/missions';
+import {
+  saveRapportMission,
+  genererDocumentRapportMission,
+  tenterClotureMission,
+} from '@/app/actions/rapports';
 
 export interface MissionDetailData {
   id: string;
@@ -44,21 +49,90 @@ export interface MissionDetailData {
     id: string;
     nom: string;
     statut: string;
-    chef_equipe: { matricule: string; profiles: { nom: string; prenom: string } };
-    equipe_agents: { agents: { matricule: string; profiles: { nom: string; prenom: string } } }[];
-    equipe_assujettis: { assujettis: { nom_raison_sociale: string; identifiant: string } }[];
+    chef_equipe_id: string;
+    chef_equipe: { id: string; matricule: string; profiles: { nom: string; prenom: string } };
+    equipe_agents: { agents: { id: string; matricule: string; profiles: { nom: string; prenom: string } } }[];
+    equipe_assujettis: { assujettis: { id: string; nom_raison_sociale: string; identifiant: string } }[];
   }[];
   mission_validations?: ValidationRecord[];
   ordres_mission?: { id: string; reference: string; storage_path: string; date_generation: string } | null;
   autorisations_controle_pieces?: { id: string; reference: string; storage_path: string; date_generation: string } | null;
+  rapports_mission?: {
+    id: string;
+    date: string;
+    contenu: string;
+    statut?: string | null;
+    storage_path?: string | null;
+    auteur_id: string;
+    created_at: string;
+    updated_at: string;
+    profiles?: { nom: string; prenom: string; role: string } | null;
+  }[];
   controles?: {
     id: string;
     assujetti_id: string;
     statut: string;
     type_controle: string;
     controleur_responsable_id?: string | null;
-    profiles?: { nom: string; prenom: string } | null;
+    date_debut?: string | null;
+    date_fin?: string | null;
+    observations?: string | null;
+    assujettis?: { id: string; nom_raison_sociale: string; identifiant: string } | null;
+    profiles?: { id: string; nom: string; prenom: string } | null;
+    resultats_controle?: {
+      id: string;
+      type_resultat: string;
+      montant_du?: number | null;
+      montant_penalites?: number | null;
+      montant_total?: number | null;
+      devise: string;
+      justification?: string | null;
+      redressements?: { id: string; montant: number; devise: string; motif: string; statut?: string | null }[];
+      penalites?: { id: string; montant: number; devise: string; motif: string }[];
+      avis_recouvrement?: { id: string; reference: string; date: string; montant: number; devise: string; storage_path?: string | null }[];
+    }[] | {
+      id: string;
+      type_resultat: string;
+      montant_du?: number | null;
+      montant_penalites?: number | null;
+      montant_total?: number | null;
+      devise: string;
+      justification?: string | null;
+      redressements?: { id: string; montant: number; devise: string; motif: string; statut?: string | null }[];
+      penalites?: { id: string; montant: number; devise: string; motif: string }[];
+      avis_recouvrement?: { id: string; reference: string; date: string; montant: number; devise: string; storage_path?: string | null }[];
+    } | null;
+    demandes_renseignements?: {
+      id: string;
+      statut: string;
+      date_envoi: string;
+      date_limite?: string | null;
+      date_reponse?: string | null;
+      contenu: string;
+      reponse_contenu?: string | null;
+      auteur?: { nom: string; prenom: string } | null;
+    }[];
   }[];
+}
+
+export interface DocumentRecord {
+  id: string;
+  document_type: string;
+  nom: string;
+  mime_type: string;
+  taille: number;
+  storage_path: string;
+  version: number;
+  created_at: string;
+}
+
+export interface AuditLogRecord {
+  id: string;
+  action: string;
+  created_at: string;
+  old_data?: Record<string, unknown> | null;
+  new_data?: Record<string, unknown> | null;
+  profiles?: { nom: string; prenom: string; role: string } | null;
 }
 
 interface MissionDetailClientProps {
@@ -70,15 +144,20 @@ interface MissionDetailClientProps {
     nom: string;
     prenom: string;
   };
+  userAgentId?: string | null;
+  documents?: DocumentRecord[];
+  auditLogs?: AuditLogRecord[];
   availableControleurs?: { id: string; nom: string; prenom: string; email: string }[];
 }
 
 export function MissionDetailClient({
-  mission: initialMission,
+  mission,
   currentUser,
+  userAgentId,
+  documents = [],
+  auditLogs = [],
   availableControleurs = [],
 }: MissionDetailClientProps) {
-  const [mission] = useState<MissionDetailData>(initialMission);
   const [activeModal, setActiveModal] = useState<
     'EXAMEN_DIVISION' | 'EXAMEN_DIRECTEUR' | 'DECISION_DG' | 'DECISION_CHEF_SECTION' | null
   >(null);
@@ -88,12 +167,56 @@ export function MissionDetailClient({
   );
   const [isProcessing, setIsProcessing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
-  // Actions de workflow
+  // État pour le Rapport de Mission
+  const currentRapport = mission.rapports_mission && mission.rapports_mission.length > 0
+    ? mission.rapports_mission[0]
+    : null;
+
+  const [isEditingRapport, setIsEditingRapport] = useState(false);
+  const [rapportContenu, setRapportContenu] = useState(currentRapport?.contenu || '');
+
+  // Calcul des totaux financiers consolidés de la mission
+  let totalDuCDF = 0;
+  let totalPenalitesCDF = 0;
+  let totalGlobalCDF = 0;
+  let totalDuUSD = 0;
+  let totalPenalitesUSD = 0;
+  let totalGlobalUSD = 0;
+  let redressementsCount = 0;
+  let penalitesCount = 0;
+  let avisCount = 0;
+
+  const controlesList = mission.controles || [];
+  controlesList.forEach((c) => {
+    const res = Array.isArray(c.resultats_controle) ? c.resultats_controle[0] : c.resultats_controle;
+    if (res) {
+      const du = Number(res.montant_du ?? 0);
+      const pen = Number(res.montant_penalites ?? 0);
+      const tot = Number(res.montant_total ?? (du + pen));
+
+      if (res.devise === 'CDF') {
+        totalDuCDF += du;
+        totalPenalitesCDF += pen;
+        totalGlobalCDF += tot;
+      } else if (res.devise === 'USD') {
+        totalDuUSD += du;
+        totalPenalitesUSD += pen;
+        totalGlobalUSD += tot;
+      }
+
+      redressementsCount += (res.redressements || []).length;
+      penalitesCount += (res.penalites || []).length;
+      avisCount += (res.avis_recouvrement || []).length;
+    }
+  });
+
+  // Actions de workflow hiérarchique
   const handleDirectSubmit = async () => {
     setIsProcessing(true);
     setActionError(null);
-
+    setActionSuccess(null);
     try {
       const res = await submitMission({ mission_id: mission.id });
       if (res.success) {
@@ -109,7 +232,7 @@ export function MissionDetailClient({
   const handleResetToDraft = async () => {
     setIsProcessing(true);
     setActionError(null);
-
+    setActionSuccess(null);
     try {
       const res = await resetRejectedMission({ mission_id: mission.id });
       if (res.success) {
@@ -126,7 +249,7 @@ export function MissionDetailClient({
     if (!selectedControleurId) return;
     setIsProcessing(true);
     setActionError(null);
-
+    setActionSuccess(null);
     try {
       const res = await designateControleur({
         mission_id: mission.id,
@@ -158,9 +281,72 @@ export function MissionDetailClient({
     }
   };
 
-  // Conditions d'affichage des boutons d'actions hiérarchiques
+  // Actions Rapport de mission
+  const handleSaveRapport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsProcessing(true);
+    setActionError(null);
+    setActionSuccess(null);
+    try {
+      const res = await saveRapportMission({
+        mission_id: mission.id,
+        contenu: rapportContenu,
+        statut: 'FINALISE',
+      });
+      if (res.success) {
+        setActionSuccess('Rapport de mission enregistré avec succès.');
+        setIsEditingRapport(false);
+        window.location.reload();
+      } else {
+        setActionError(res.error || 'Erreur lors de l\'enregistrement du rapport.');
+      }
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleGenererDocRapport = async () => {
+    setIsProcessing(true);
+    setActionError(null);
+    setActionSuccess(null);
+    try {
+      const res = await genererDocumentRapportMission({
+        mission_id: mission.id,
+      });
+      if (res.success) {
+        setActionSuccess(`Document officiel du rapport généré (Réf: ${res.data?.reference}).`);
+        window.location.reload();
+      } else {
+        setActionError(res.error || 'Erreur lors de la génération du document officiel.');
+      }
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Action Clôture
+  const handleCloturerMission = async () => {
+    setIsProcessing(true);
+    setActionError(null);
+    setActionSuccess(null);
+    try {
+      const res = await tenterClotureMission({
+        mission_id: mission.id,
+      });
+      if (res.success) {
+        setActionSuccess(res.data?.message || 'Mission clôturée.');
+        window.location.reload();
+      } else {
+        setActionError(res.error || 'Erreur lors de la clôture.');
+      }
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Permissions d'actions hiérarchiques
   const canSubmit =
-    (mission.statut === 'BROUILLON') &&
+    mission.statut === 'BROUILLON' &&
     (currentUser.role === 'CHEF_BUREAU' || currentUser.role === 'ANALYSTE' || currentUser.role === 'CONTROLEUR');
 
   const canResetDraft =
@@ -192,9 +378,29 @@ export function MissionDetailClient({
     mission.statut === 'AUTORISATION_GENEREE' &&
     (currentUser.role === 'CHEF_SECTION' || currentUser.role === 'CHEF_BUREAU');
 
+  // Permission de gérer le rapport
+  const isChefEquipe =
+    mission.type_controle === 'SUR_PLACE' &&
+    currentUser.role === 'CHEF_EQUIPE' &&
+    mission.equipes?.some((e) => e.chef_equipe_id === userAgentId);
+
+  const isControleurDesignated =
+    mission.type_controle === 'SUR_PIECES' &&
+    currentUser.role === 'CONTROLEUR' &&
+    mission.controles?.some((c) => c.controleur_responsable_id === currentUser.id);
+
+  const isBureauOrHierarchy =
+    currentUser.role === 'DIRECTEUR_GENERAL' ||
+    currentUser.role === 'DIRECTEUR_CONTROLES' ||
+    currentUser.role === 'CHEF_DIVISION' ||
+    (currentUser.role === 'CHEF_BUREAU' && currentUser.bureau_id === mission.bureau_id) ||
+    (mission.type_controle === 'SUR_PIECES' && currentUser.role === 'CHEF_SECTION' && currentUser.bureau_id === mission.bureau_id);
+
+  const canManageRapport = currentUser.role !== 'ADMIN' && (isChefEquipe || isControleurDesignated || isBureauOrHierarchy);
+
   return (
-    <div className="space-y-8">
-      {/* En-tête du dossier */}
+    <div className="space-y-8 pb-12">
+      {/* 1. EN-TÊTE DE LA MISSION */}
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-xs">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-6 border-b border-zinc-100 dark:border-zinc-800">
           <div className="space-y-1.5">
@@ -216,9 +422,9 @@ export function MissionDetailClient({
           <div className="flex items-center gap-3">
             <Link
               href="/missions"
-              className="px-3.5 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 rounded-lg transition-colors"
+              className="px-3.5 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors"
             >
-              Retour à la liste
+              ← Retour à la liste
             </Link>
           </div>
         </div>
@@ -229,7 +435,13 @@ export function MissionDetailClient({
           </div>
         )}
 
-        {/* Panneau d'action rapide selon le rôle */}
+        {actionSuccess && (
+          <div className="mt-4 p-3 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 rounded-lg text-xs text-emerald-700 dark:text-emerald-300">
+            {actionSuccess}
+          </div>
+        )}
+
+        {/* Panneau d'actions hiérarchiques contextuelles */}
         {(canSubmit || canResetDraft || canExamineDivision || canExamineDirecteur || canDecideDG || canDecideChefSection || canDesignate) && (
           <div className="mt-6 p-4 bg-blue-50/50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/80 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
@@ -329,75 +541,14 @@ export function MissionDetailClient({
         )}
       </div>
 
-      {/* Stepper & Historique des validations */}
+      {/* 2. TIMELINE & WORKFLOW STEPPER */}
       <WorkflowTimeline
         typeControle={mission.type_controle}
         currentStatus={mission.statut}
         validations={mission.mission_validations || []}
       />
 
-      {/* Documents officiels générés */}
-      {(mission.ordres_mission || mission.autorisations_controle_pieces) && (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-xs space-y-4">
-          <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
-            Documents Officiels Générés & Certifiés
-          </h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {mission.ordres_mission && (
-              <div className="p-4 bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl flex items-center justify-between">
-                <div>
-                  <div className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
-                    Ordre de Mission Officiel
-                  </div>
-                  <div className="text-xs font-mono text-zinc-600 dark:text-zinc-400 mt-0.5">
-                    Réf: {mission.ordres_mission.reference}
-                  </div>
-                  <div className="text-[10px] text-zinc-400 mt-1">
-                    Émis le {new Date(mission.ordres_mission.date_generation).toLocaleDateString('fr-FR')}
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleDownloadDoc(mission.ordres_mission!.storage_path)}
-                  className="px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-white dark:bg-zinc-900 border border-emerald-300 dark:border-emerald-700 rounded-lg hover:bg-emerald-50 transition-colors flex items-center gap-1.5"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Consulter / Télécharger
-                </button>
-              </div>
-            )}
-
-            {mission.autorisations_controle_pieces && (
-              <div className="p-4 bg-purple-50/50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 rounded-xl flex items-center justify-between">
-                <div>
-                  <div className="text-xs font-bold text-purple-800 dark:text-purple-300">
-                    Autorisation de Contrôle sur Pièces
-                  </div>
-                  <div className="text-xs font-mono text-zinc-600 dark:text-zinc-400 mt-0.5">
-                    Réf: {mission.autorisations_controle_pieces.reference}
-                  </div>
-                  <div className="text-[10px] text-zinc-400 mt-1">
-                    Émise le {new Date(mission.autorisations_controle_pieces.date_generation).toLocaleDateString('fr-FR')}
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleDownloadDoc(mission.autorisations_controle_pieces!.storage_path)}
-                  className="px-3 py-1.5 text-xs font-semibold text-purple-700 bg-white dark:bg-zinc-900 border border-purple-300 dark:border-purple-700 rounded-lg hover:bg-purple-50 transition-colors flex items-center gap-1.5"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Consulter / Télécharger
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Cadre institutionnel & Assujettis */}
+      {/* 3. CADRE INSTITUTIONNEL & ASSUJETTIS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-xs space-y-3">
           <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
@@ -427,7 +578,7 @@ export function MissionDetailClient({
 
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-xs space-y-3">
           <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
-            Entreprises & Assujettis Ciblés ({mission.mission_assujettis?.length || 0})
+            Entreprises & Assujettis ({mission.mission_assujettis?.length || 0})
           </h2>
           <div className="max-h-56 overflow-y-auto divide-y divide-zinc-100 dark:divide-zinc-800 text-xs">
             {mission.mission_assujettis && mission.mission_assujettis.length > 0 ? (
@@ -453,166 +604,358 @@ export function MissionDetailClient({
         </div>
       </div>
 
-      {/* Bloc SUR_PIECES : Autorisation + Contrôleur + Contrôles opérationnels */}
-      {mission.type_controle === 'SUR_PIECES' && (
-        <div className="space-y-4">
-          {/* Autorisation de contrôle sur pièces */}
-          {mission.autorisations_controle_pieces && (
-            <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-700 rounded-xl p-5 shadow-xs">
-              <div className="flex items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <h2 className="text-sm font-bold text-emerald-900 dark:text-emerald-200 uppercase tracking-wider flex items-center gap-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                    </svg>
-                    Autorisation de Contrôle sur Pièces
-                  </h2>
-                  <p className="text-xs font-mono font-bold text-emerald-700 dark:text-emerald-300">
-                    Réf. {mission.autorisations_controle_pieces.reference}
-                  </p>
-                  <p className="text-[11px] text-emerald-600 dark:text-emerald-400">
-                    Générée le {new Date(mission.autorisations_controle_pieces.date_generation).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}
-                  </p>
+      {/* 4. CONTRÔLES OPÉRATIONNELS & AVANCEMENT */}
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-xs space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+            Contrôles Opérationnels ({controlesList.length})
+          </h2>
+          <span className="text-xs text-zinc-500">
+            {controlesList.filter((c) => c.statut === 'TERMINE').length} / {controlesList.length} terminés
+          </span>
+        </div>
+
+        {controlesList.length > 0 ? (
+          <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+            {controlesList.map((ctrl) => {
+              const res = Array.isArray(ctrl.resultats_controle) ? ctrl.resultats_controle[0] : ctrl.resultats_controle;
+              return (
+                <div key={ctrl.id} className="py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                        {ctrl.assujettis?.nom_raison_sociale || 'Assujetti'}
+                      </span>
+                      <span className="text-xs font-mono text-zinc-400">
+                        ({ctrl.assujettis?.identifiant})
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-500">
+                      <span>Statut : <strong className="font-mono text-zinc-700 dark:text-zinc-300">{ctrl.statut}</strong></span>
+                      {ctrl.date_debut && <span>Début : {ctrl.date_debut}</span>}
+                      {ctrl.date_fin && <span>Fin : {ctrl.date_fin}</span>}
+                      {ctrl.profiles && (
+                        <span>Contrôleur : <strong>{ctrl.profiles.nom} {ctrl.profiles.prenom}</strong></span>
+                      )}
+                    </div>
+
+                    {res && (
+                      <div className="mt-1 text-xs">
+                        <span className={`font-semibold px-2 py-0.5 rounded text-[11px] ${
+                          res.type_resultat === 'CHARGEE'
+                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
+                            : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
+                        }`}>
+                          Résultat : {res.type_resultat}
+                        </span>
+                        {res.type_resultat === 'CHARGEE' && (
+                          <span className="ml-2 font-mono text-zinc-700 dark:text-zinc-300">
+                            Total dû : <strong>{Number(res.montant_total ?? 0).toLocaleString('fr-FR')} {res.devise}</strong>
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/controles/${ctrl.id}`}
+                      className="px-3.5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center gap-1"
+                    >
+                      <span>Accéder au contrôle</span>
+                      <span>→</span>
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-xs text-zinc-400 italic py-4 text-center">
+            Aucun contrôle opérationnel initié. Les contrôles sont générés après confirmation DG ou désignation de contrôleur.
+          </p>
+        )}
+      </div>
+
+      {/* 5. CONSOLIDATION FINANCIÈRE DE LA MISSION */}
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-xs space-y-4">
+        <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+          Consolidation Financière du Dossier
+        </h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Totaux CDF */}
+          <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-xl space-y-2">
+            <div className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase font-mono">
+              Recettes en Francs Congolais (CDF)
+            </div>
+            <div className="text-xs space-y-1">
+              <div className="flex justify-between">
+                <span className="text-zinc-500">Droits éludés / Principal :</span>
+                <span className="font-mono font-semibold">{totalDuCDF.toLocaleString('fr-FR')} CDF</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-500">Pénalités & majorations :</span>
+                <span className="font-mono font-semibold">{totalPenalitesCDF.toLocaleString('fr-FR')} CDF</span>
+              </div>
+              <div className="flex justify-between pt-1 border-t border-zinc-200 dark:border-zinc-700 text-sm font-bold text-blue-600 dark:text-blue-400">
+                <span>TOTAL CDF :</span>
+                <span className="font-mono">{totalGlobalCDF.toLocaleString('fr-FR')} CDF</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Totaux USD */}
+          <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-xl space-y-2">
+            <div className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase font-mono">
+              Recettes en Dollars Américains (USD)
+            </div>
+            <div className="text-xs space-y-1">
+              <div className="flex justify-between">
+                <span className="text-zinc-500">Droits éludés / Principal :</span>
+                <span className="font-mono font-semibold">{totalDuUSD.toLocaleString('fr-FR')} USD</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-500">Pénalités & majorations :</span>
+                <span className="font-mono font-semibold">{totalPenalitesUSD.toLocaleString('fr-FR')} USD</span>
+              </div>
+              <div className="flex justify-between pt-1 border-t border-zinc-200 dark:border-zinc-700 text-sm font-bold text-blue-600 dark:text-blue-400">
+                <span>TOTAL USD :</span>
+                <span className="font-mono">{totalGlobalUSD.toLocaleString('fr-FR')} USD</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-6 pt-2 text-xs text-zinc-500">
+          <span>Redressements : <strong>{redressementsCount}</strong></span>
+          <span>Pénalités : <strong>{penalitesCount}</strong></span>
+          <span>Avis de recouvrement : <strong>{avisCount}</strong></span>
+        </div>
+      </div>
+
+      {/* 6. RAPPORT DE MISSION (ÉTAPE 11) */}
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-zinc-100 dark:border-zinc-800">
+          <div>
+            <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+              Rapport de Mission & Synthèse Finale
+            </h2>
+            <p className="text-xs text-zinc-500">
+              Synthèse officielle des constats, opérations, résultats et conclusions de la mission.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {canManageRapport && !isEditingRapport && (
+              <button
+                onClick={() => setIsEditingRapport(true)}
+                className="px-3 py-1.5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 rounded-lg transition-colors"
+              >
+                {currentRapport ? 'Modifier le rapport' : 'Rédiger le rapport'}
+              </button>
+            )}
+
+            {currentRapport && (
+              <button
+                onClick={handleGenererDocRapport}
+                disabled={isProcessing}
+                className="px-3.5 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Générer le Document Officiel
+              </button>
+            )}
+          </div>
+        </div>
+
+        {isEditingRapport ? (
+          <form onSubmit={handleSaveRapport} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                Observations, analyse globale et conclusions de la mission :
+              </label>
+              <textarea
+                value={rapportContenu}
+                onChange={(e) => setRapportContenu(e.target.value)}
+                rows={8}
+                placeholder="Rédigez la synthèse complète des contrôles, constats majeurs, irrégularités relevées et recommandations..."
+                className="w-full text-xs p-3 bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-300 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-hidden leading-relaxed"
+                required
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setIsEditingRapport(false)}
+                className="px-3 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-100 rounded-lg"
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                disabled={isProcessing || rapportContenu.trim().length < 10}
+                className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-xs"
+              >
+                Enregistrer le Rapport
+              </button>
+            </div>
+          </form>
+        ) : currentRapport ? (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-4 text-xs text-zinc-500">
+              <span>Rédigé le : <strong>{currentRapport.date}</strong></span>
+              <span>Auteur : <strong>{currentRapport.profiles?.nom} {currentRapport.profiles?.prenom}</strong> ({currentRapport.profiles?.role})</span>
+              <span>Statut : <strong className="font-mono">{currentRapport.statut}</strong></span>
+            </div>
+
+            <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed">
+              {currentRapport.contenu}
+            </div>
+
+            {currentRapport.storage_path && (
+              <div className="flex items-center justify-between p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg">
+                <div className="text-xs text-emerald-800 dark:text-emerald-300 font-semibold">
+                  Document officiel du rapport archivé
                 </div>
                 <button
-                    onClick={() => handleDownloadDoc(mission.autorisations_controle_pieces!.storage_path)}
-                    className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                    Télécharger
+                  onClick={() => handleDownloadDoc(currentRapport.storage_path!)}
+                  className="px-3 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-white dark:bg-zinc-900 border border-emerald-300 dark:border-emerald-700 rounded-md hover:bg-emerald-50"
+                >
+                  Télécharger le document certifié
                 </button>
               </div>
-            </div>
-          )}
-
-          {/* Contrôleur désigné */}
-          {mission.controles && mission.controles.length > 0 && mission.controles[0]?.profiles && (
-            <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-700 rounded-xl p-5 shadow-xs">
-              <h2 className="text-sm font-bold text-blue-900 dark:text-blue-200 uppercase tracking-wider mb-2">Contrôleur Responsable Désigné</h2>
-              <p className="text-sm font-semibold text-blue-800 dark:text-blue-100">
-                {mission.controles[0].profiles.nom} {mission.controles[0].profiles.prenom}
-              </p>
-              <p className="text-xs text-blue-500 dark:text-blue-400 mt-0.5">Responsable des contrôles sur pièces de cette mission</p>
-            </div>
-          )}
-
-          {/* Contrôles opérationnels SUR_PIECES */}
-          {mission.controles && mission.controles.length > 0 && (
-            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-xs space-y-3">
-              <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
-                Contrôles sur Pièces ({mission.controles.length})
-              </h2>
-              <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                {mission.controles.map((ctrl) => {
-                  const assujetiInfo = mission.mission_assujettis?.find(
-                    (ma) => ma.assujettis.id === ctrl.assujetti_id
-                  );
-                  return (
-                    <div key={ctrl.id} className="py-3 flex items-center justify-between gap-3">
-                      <div className="space-y-0.5">
-                        <div className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-                          {assujetiInfo?.assujettis.nom_raison_sociale || ctrl.assujetti_id.slice(0, 8)}
-                        </div>
-                        <div className="text-[11px] text-zinc-400 font-mono">
-                          {assujetiInfo?.assujettis.identifiant}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono ${
-                          ctrl.statut === 'TERMINE' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' :
-                          ctrl.statut === 'EN_COURS' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' :
-                          'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
-                        }`}>
-                          {ctrl.statut.replace('_', ' ')}
-                        </span>
-                        <Link
-                          href={`/controles/${ctrl.id}`}
-                          className="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-                        >
-                          Ouvrir →
-                        </Link>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Équipes pour SUR_PLACE */}
-      {mission.type_controle === 'SUR_PLACE' && mission.equipes && (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
-              Équipes de Terrain ({mission.equipes.length})
-            </h2>
-            <Link
-              href="/equipes"
-              className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline"
-            >
-              Gérer les équipes →
-            </Link>
+            )}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {mission.equipes.map((eq) => (
-              <div
-                key={eq.id}
-                className="p-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-xl space-y-3"
-              >
-                <div className="flex items-center justify-between pb-2 border-b border-zinc-200 dark:border-zinc-700">
-                  <Link
-                    href={`/equipes/${eq.id}`}
-                    className="font-bold text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1.5"
-                  >
-                    <span>{eq.nom}</span>
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                  </Link>
-                  <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-bold">
-                    {eq.statut}
-                  </span>
-                </div>
+        ) : (
+          <p className="text-xs text-zinc-400 italic py-4 text-center">
+            Aucun rapport de mission n&apos;a encore été rédigé pour ce dossier.
+          </p>
+        )}
+      </div>
 
-                <div className="text-xs space-y-1">
-                  <div>
-                    <span className="text-zinc-500">Chef d&apos;équipe : </span>
-                    <span className="font-semibold text-zinc-800 dark:text-zinc-200">
-                      {eq.chef_equipe?.profiles?.nom} {eq.chef_equipe?.profiles?.prenom} ({eq.chef_equipe?.matricule})
+      {/* 7. DOCUMENTS OFFICIELS & PIÈCES JOINTES */}
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-xs space-y-4">
+        <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+          Référentiel Documentaire Centralisé ({documents.length})
+        </h2>
+
+        {documents.length > 0 ? (
+          <div className="divide-y divide-zinc-100 dark:divide-zinc-800 text-xs">
+            {documents.map((doc) => (
+              <div key={doc.id} className="py-3 flex items-center justify-between gap-4">
+                <div className="space-y-0.5">
+                  <div className="font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                    <span>{doc.nom}</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                      {doc.document_type}
                     </span>
                   </div>
-
-                  <div className="pt-2">
-                    <span className="text-zinc-500 block mb-1">Agents affectés :</span>
-                    <ul className="list-disc pl-4 text-[11px] text-zinc-600 dark:text-zinc-400 space-y-0.5">
-                      {eq.equipe_agents?.map((ea, idx) => (
-                        <li key={idx}>
-                          {ea.agents?.profiles?.nom} {ea.agents?.profiles?.prenom} ({ea.agents?.matricule})
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="pt-2">
-                    <span className="text-zinc-500 block mb-1">Entreprises assignées :</span>
-                    <ul className="list-disc pl-4 text-[11px] text-zinc-600 dark:text-zinc-400 space-y-0.5">
-                      {eq.equipe_assujettis?.map((eas, idx) => (
-                        <li key={idx}>{eas.assujettis?.nom_raison_sociale}</li>
-                      ))}
-                    </ul>
+                  <div className="text-[11px] text-zinc-400">
+                    Version v{doc.version} • {(doc.taille / 1024).toFixed(1)} Ko • Enregistré le {new Date(doc.created_at).toLocaleDateString('fr-FR')}
                   </div>
                 </div>
+
+                <button
+                  onClick={() => handleDownloadDoc(doc.storage_path)}
+                  className="px-3 py-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 rounded-lg transition-colors"
+                >
+                  Télécharger
+                </button>
               </div>
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <p className="text-xs text-zinc-400 italic py-4 text-center">
+            Aucun document archivé pour cette mission.
+          </p>
+        )}
+      </div>
 
-      {/* Modales de validation hiérarchique */}
+      {/* 8. CLÔTURE DE LA MISSION & ÉTAT QM-026 */}
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-xs space-y-4">
+        <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+          Finalisation & Clôture du Dossier
+        </h2>
+
+        <div className="p-4 bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700 rounded-xl space-y-3">
+          <div className="text-xs space-y-1.5">
+            <div className="font-semibold text-zinc-800 dark:text-zinc-200">
+              Vérification des prérequis de fin de mission :
+            </div>
+            <ul className="space-y-1 text-zinc-600 dark:text-zinc-400">
+              <li className="flex items-center gap-2">
+                <span className={controlesList.length > 0 ? 'text-emerald-600 font-bold' : 'text-zinc-400'}>
+                  {controlesList.length > 0 ? '✓' : '○'}
+                </span>
+                <span>Contrôles opérationnels initiés ({controlesList.length})</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span className={controlesList.length > 0 && controlesList.every((c) => c.statut === 'TERMINE' || c.statut === 'ANNULE') ? 'text-emerald-600 font-bold' : 'text-amber-500'}>
+                  {controlesList.length > 0 && controlesList.every((c) => c.statut === 'TERMINE' || c.statut === 'ANNULE') ? '✓' : '○'}
+                </span>
+                <span>Tous les contrôles achevés (statut TERMINE)</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span className={currentRapport ? 'text-emerald-600 font-bold' : 'text-amber-500'}>
+                  {currentRapport ? '✓' : '○'}
+                </span>
+                <span>Rapport de mission rédigé et finalisé</span>
+              </li>
+            </ul>
+          </div>
+
+          <div className="pt-2 border-t border-zinc-200 dark:border-zinc-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="text-[11px] text-amber-700 dark:text-amber-400">
+              <strong>Statut QM-026 :</strong> L&apos;autorité officielle de clôture définitive est à valider. Le système garantit la complétude du dossier sans simuler de clôture arbitraire.
+            </div>
+
+            <button
+              onClick={handleCloturerMission}
+              disabled={isProcessing}
+              className="px-4 py-2 text-xs font-bold text-white bg-zinc-800 hover:bg-zinc-900 dark:bg-zinc-700 dark:hover:bg-zinc-600 rounded-lg transition-colors shrink-0"
+            >
+              Vérifier & Clôturer la mission
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 9. JOURNAL D'AUDIT & HISTORIQUE */}
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-xs space-y-4">
+        <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+          Journal d&apos;Audit & Traçabilité Immuable ({auditLogs.length})
+        </h2>
+
+        {auditLogs.length > 0 ? (
+          <div className="max-h-64 overflow-y-auto divide-y divide-zinc-100 dark:divide-zinc-800 text-xs font-mono">
+            {auditLogs.map((log) => (
+              <div key={log.id} className="py-2.5 flex items-center justify-between gap-4">
+                <div>
+                  <span className="font-bold text-blue-600 dark:text-blue-400">
+                    {log.action}
+                  </span>
+                  <span className="text-zinc-500 ml-2">
+                    par {log.profiles ? `${log.profiles.nom} ${log.profiles.prenom}` : 'Système'} ({log.profiles?.role || 'SYSTEM'})
+                  </span>
+                </div>
+                <span className="text-zinc-400 text-[11px] shrink-0">
+                  {new Date(log.created_at).toLocaleString('fr-FR')}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-zinc-400 italic py-4 text-center">
+            Aucun journal d&apos;audit enregistré pour cette mission.
+          </p>
+        )}
+      </div>
+
+      {/* MODALES DE VALIDATION HIÉRARCHIQUE */}
       <ValidationModal
         isOpen={activeModal === 'EXAMEN_DIVISION'}
         onClose={() => setActiveModal(null)}
