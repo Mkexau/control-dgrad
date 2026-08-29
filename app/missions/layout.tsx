@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth/get-current-user';
 import { RoleBadge } from '@/components/admin/status-badge';
+import { LogoutButton } from '@/components/auth/logout-button';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,6 +50,7 @@ export default async function MissionsLayout({
           </div>
 
           <div className="flex items-center gap-4">
+            <LogoutButton />
             <div className="flex items-center gap-2.5">
               <RoleBadge role={currentUser.role} />
               <div className="hidden sm:block text-right">

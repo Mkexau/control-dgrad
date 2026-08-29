@@ -7,6 +7,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import React from 'react';
+import { LogoutButton } from '@/components/auth/logout-button';
 
 const NAV_ITEMS = [
   {
@@ -138,6 +139,7 @@ export function AdminHeader({ userEmail, userRole }: { userEmail: string; userRo
       </div>
 
       <div className="flex items-center gap-4">
+        <LogoutButton />
         <div className="text-right">
           <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100">{userEmail}</p>
           <span className="inline-block text-[10px] font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wider">

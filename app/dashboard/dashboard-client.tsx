@@ -9,6 +9,7 @@ import Link from 'next/link';
 import type { DashboardMetrics } from '@/lib/stats/stats-service';
 import type { StatsFilterInput } from '@/lib/validations/stats';
 import { fetchDashboardMetrics } from '@/app/actions/stats';
+import { LogoutButton } from '@/components/auth/logout-button';
 
 interface DashboardClientProps {
   initialMetrics: DashboardMetrics;
@@ -107,6 +108,7 @@ export function DashboardClient({
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <LogoutButton />
             <Link
               href="/missions/nouvelle"
               className="px-3.5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-xs flex items-center gap-1.5"

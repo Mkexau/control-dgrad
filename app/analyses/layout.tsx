@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth/get-current-user';
 import { RoleBadge } from '@/components/admin/status-badge';
 import { NotificationBell } from '@/components/notifications/notification-bell';
+import { LogoutButton } from '@/components/auth/logout-button';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,6 +63,7 @@ export default async function AnalysesLayout({
 
           <div className="flex items-center gap-3">
             <NotificationBell />
+            <LogoutButton />
             <div className="flex items-center gap-2.5">
               <RoleBadge role={currentUser.role} />
               <div className="hidden sm:block text-right">
