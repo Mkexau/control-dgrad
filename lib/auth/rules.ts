@@ -1,4 +1,4 @@
-import type { Role, CurrentUser } from "../validations/auth";
+import type { Role, CurrentUser } from "../validations/auth.ts";
 
 // =============================================================================
 // DGRAD CONTROLE - RÈGLES ET GUARDS D'AUTORISATION MÉTIER (SOURCE UNIQUE)

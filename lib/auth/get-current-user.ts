@@ -52,7 +52,9 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
 
   // 3. Consolidation et validation Zod
   const rawUser = {
-    id: user.id,
+    // Les objets métier (auteur_id, user_id des notifications, audit_logs)
+    // référencent public.profiles.id, jamais auth.users.id.
+    id: profile.id,
     email: user.email ?? "",
     role: profile.role,
     bureau_id: profile.bureau_id,
