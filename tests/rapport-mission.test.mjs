@@ -186,11 +186,11 @@ describe('Étape 11 — Rapport de Mission, Clôture et Finalisation du Dossier'
     });
 
     it('Chef de Section pour SUR_PIECES de son bureau est AUTORISÉ', () => {
-      const chefSection = createTestUser({ role: 'CHEF_SECTION', bureau_id: IDS.bureau });
+      const chefSection = createTestUser({ role: 'CHEF_BUREAU', bureau_id: IDS.bureau });
       const mission = createTestMission({ type_controle: 'SUR_PIECES', bureau_id: IDS.bureau });
 
       const authorizedUser = assertCanManageRapportMission(chefSection, mission, null);
-      assert.equal(authorizedUser.role, 'CHEF_SECTION');
+      assert.equal(authorizedUser.role, 'CHEF_BUREAU');
     });
 
     it('Directeur Général et Hiérarchie sont AUTORISÉS sur leur périmètre', () => {
@@ -201,7 +201,7 @@ describe('Étape 11 — Rapport de Mission, Clôture et Finalisation du Dossier'
 
       assert.equal(assertCanManageRapportMission(dg, mission, null).role, 'DIRECTEUR_GENERAL');
       assert.equal(assertCanManageRapportMission(dirControles, mission, null).role, 'DIRECTEUR_CONTROLES');
-      assert.equal(assertCanManageRapportMission(chefDiv, mission, null).role, 'CHEF_DIVISION');
+      assert.throws(() => assertCanManageRapportMission(chefDiv, mission, null), ForbiddenError);
     });
 
     it('Utilisateur inactif est REFUSÉ', () => {

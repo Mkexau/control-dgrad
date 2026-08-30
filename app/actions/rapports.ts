@@ -105,7 +105,7 @@ export async function saveRapportMission(
     assertCanManageRapportMission(currentUser, missionScope, userAgent?.id || null);
 
     // 3. Vérifier le statut de la mission
-    const invalidStatuses = ['BROUILLON', 'SOUMISE', 'EXAMEN_CHEF_DIVISION', 'EXAMEN_DIRECTEUR_CONTROLES', 'ATTENTE_DG', 'DEMANDE_SOUMISE', 'EXAMEN_CHEF_SECTION', 'REJETEE', 'ANNULEE'];
+    const invalidStatuses = ['BROUILLON', 'SOUMISE', 'EXAMEN_CHEF_DIVISION', 'EXAMEN_DIRECTEUR_CONTROLES', 'ATTENTE_DG', 'DEMANDE_SOUMISE', 'EXAMEN_CHEF_BUREAU', 'REJETEE', 'ANNULEE'];
     if (invalidStatuses.includes(mission.statut)) {
       return {
         success: false,
@@ -501,7 +501,7 @@ export async function genererDocumentRapportMission(
  *
  * NOTE DE CONFORMITÉ MÉTIER (QM-026) :
  * La question de savoir quelle autorité officielle est habilitée à prononcer la clôture définitive
- * (Directeur Général, Chef de Division, Chef de Bureau, ou Chef de Section) est explicitement À VALIDER.
+ * (Directeur Général, Chef de Division ou Chef de Bureau) est explicitement À VALIDER.
  * Conformément aux règles absolues du projet, aucune décision arbitraire n'est inventée :
  * les prérequis techniques sont vérifiés et l'opération de transition définitive reste bloquée
  * avec un motif clair tant que la validation administrative officielle n'a pas été formellement arrêtée.

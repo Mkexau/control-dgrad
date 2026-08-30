@@ -20,10 +20,8 @@ export interface AnalyseScope {
 }
 
 const GLOBAL_VIEW_ROLES: Role[] = [
-  'ADMIN',
   'DIRECTEUR_GENERAL',
   'DIRECTEUR_CONTROLES',
-  'CHEF_DIVISION',
   'CONSULTATION',
 ];
 
@@ -42,8 +40,8 @@ export function assertCanReadAssujetti(
     return authenticatedUser;
   }
 
-  // Chef de bureau, Analyste, Chef de section : selon le bureau
-  if (['CHEF_BUREAU', 'ANALYSTE', 'CHEF_SECTION'].includes(authenticatedUser.role)) {
+  // Chef de bureau et Analyste : selon le bureau
+  if (['CHEF_BUREAU', 'ANALYSTE'].includes(authenticatedUser.role)) {
     if (!authenticatedUser.bureau_id || (assujettiBureauId && authenticatedUser.bureau_id !== assujettiBureauId)) {
       throw new ForbiddenError('Cet assujetti ne relève pas de votre bureau de contrôle.');
     }
@@ -134,7 +132,7 @@ export function assertCanReadAnalyse(
     return authenticatedUser;
   }
 
-  if (['CHEF_BUREAU', 'ANALYSTE', 'CHEF_SECTION'].includes(authenticatedUser.role)) {
+  if (['CHEF_BUREAU', 'ANALYSTE'].includes(authenticatedUser.role)) {
     if (!authenticatedUser.bureau_id || authenticatedUser.bureau_id !== analyseBureauId) {
       throw new ForbiddenError("Ce dossier d'analyse ne relève pas de votre bureau de contrôle.");
     }

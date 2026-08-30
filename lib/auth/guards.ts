@@ -5,7 +5,7 @@ import {
   checkRole,
   checkAdmin,
   checkApprobationDG,
-  checkApprobationChefSection,
+  checkApprobationChefBureau,
   checkBureauAccess,
   checkEquipeAccess,
   checkControleurAccess,
@@ -52,11 +52,11 @@ export async function requireApprobationDG(): Promise<CurrentUser> {
 }
 
 /**
- * Assure que l'utilisateur est CHEF_SECTION pour approuver/rejeter un contrôle sur pièces.
+ * Assure que l'utilisateur est CHEF_BUREAU pour approuver/rejeter un contrôle sur pièces.
  */
-export async function requireApprobationChefSection(): Promise<CurrentUser> {
+export async function requireApprobationChefBureau(): Promise<CurrentUser> {
   const user = await getCurrentUser();
-  return checkApprobationChefSection(user);
+  return checkApprobationChefBureau(user);
 }
 
 /**

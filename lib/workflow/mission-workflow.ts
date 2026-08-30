@@ -27,7 +27,7 @@ export const SUR_PLACE_TRANSITIONS: Record<MissionStatus, MissionStatus[]> = {
   ANNULEE: [],
   // Statuts non applicables à SUR_PLACE
   DEMANDE_SOUMISE: [],
-  EXAMEN_CHEF_SECTION: [],
+  EXAMEN_CHEF_BUREAU: [],
   AUTORISATION_GENEREE: [],
   CONTROLEUR_DESIGNE: [],
 };
@@ -35,8 +35,8 @@ export const SUR_PLACE_TRANSITIONS: Record<MissionStatus, MissionStatus[]> = {
 // Matrice des transitions permises pour le Contrôle SUR PIÈCES
 export const SUR_PIECES_TRANSITIONS: Record<MissionStatus, MissionStatus[]> = {
   BROUILLON: ['DEMANDE_SOUMISE', 'ANNULEE'],
-  DEMANDE_SOUMISE: ['EXAMEN_CHEF_SECTION', 'REJETEE', 'ANNULEE'],
-  EXAMEN_CHEF_SECTION: ['APPROUVEE', 'REJETEE', 'ANNULEE'],
+  DEMANDE_SOUMISE: ['EXAMEN_CHEF_BUREAU', 'REJETEE', 'ANNULEE'],
+  EXAMEN_CHEF_BUREAU: ['APPROUVEE', 'REJETEE', 'ANNULEE'],
   APPROUVEE: ['AUTORISATION_GENEREE', 'ANNULEE'],
   AUTORISATION_GENEREE: ['CONTROLEUR_DESIGNE', 'ANNULEE'],
   CONTROLEUR_DESIGNE: ['CONTROLE_EN_COURS', 'ANNULEE'],
@@ -128,16 +128,16 @@ export function validateTransitionPermissions(
       if (missionBureauId && user.bureau_id && user.bureau_id !== missionBureauId) {
         throw new ForbiddenError('Vous ne pouvez soumettre une mission que pour votre propre Bureau de contrôle.');
       }
-    } else if (nextStatus === 'EXAMEN_CHEF_SECTION') {
-      if (user.role !== 'CHEF_SECTION' && user.role !== 'CHEF_BUREAU') {
-        throw new ForbiddenError('Seul le Chef de Section ou Chef de Bureau peut examiner ce dossier.');
+    } else if (nextStatus === 'EXAMEN_CHEF_BUREAU') {
+      if (user.role !== 'CHEF_BUREAU') {
+        throw new ForbiddenError('Seul le Chef du bureau compétent peut examiner ce dossier.');
       }
     } else if (
-      (currentStatus === 'EXAMEN_CHEF_SECTION' || currentStatus === 'DEMANDE_SOUMISE') &&
+      (currentStatus === 'EXAMEN_CHEF_BUREAU' || currentStatus === 'DEMANDE_SOUMISE') &&
       (nextStatus === 'APPROUVEE' || nextStatus === 'REJETEE')
     ) {
-      if (user.role !== 'CHEF_SECTION') {
-        throw new ForbiddenError('Seul le Chef de Section peut approuver ou rejeter un contrôle sur pièces.');
+      if (user.role !== 'CHEF_BUREAU') {
+        throw new ForbiddenError('Seul le Chef du bureau compétent peut approuver ou rejeter un contrôle sur pièces.');
       }
     }
   }
@@ -161,8 +161,8 @@ export function getValidationTypeForRole(role: string): ValidationType {
       return 'DIRECTEUR_CONTROLES';
     case 'DIRECTEUR_GENERAL':
       return 'DG';
-    case 'CHEF_SECTION':
-      return 'CHEF_SECTION';
+    case 'CHEF_BUREAU':
+      return 'CHEF_BUREAU';
     default:
       throw new ForbiddenError(`Le rôle '${role}' ne correspond à aucun échelon de validation officielle.`);
   }
@@ -199,4 +199,3 @@ export function formatRapportReference(seq: number, year: number = new Date().ge
   const padded = String(seq).padStart(6, '0');
   return `RAP-${year}-${padded}`;
 }
-

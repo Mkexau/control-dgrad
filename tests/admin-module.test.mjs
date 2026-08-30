@@ -18,7 +18,7 @@ import {
 import {
   checkAdmin,
   checkApprobationDG,
-  checkApprobationChefSection,
+  checkApprobationChefBureau,
   checkBureauAccess,
   UnauthorizedError,
   ForbiddenError,
@@ -275,7 +275,7 @@ describe('Module Administration — Validation Zod & Règles Métier', () => {
     });
 
     it('ADMIN ne peut PAS approuver au nom du Chef de Section', () => {
-      assert.throws(() => checkApprobationChefSection(adminUser), ForbiddenError);
+      assert.throws(() => checkApprobationChefBureau(adminUser), ForbiddenError);
     });
 
     it('ADMIN est exclu des accès directs aux données métier d\'un bureau', () => {

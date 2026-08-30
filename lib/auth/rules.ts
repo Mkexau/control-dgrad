@@ -71,12 +71,12 @@ export function checkApprobationDG(user: CurrentUser | null): CurrentUser {
 }
 
 /**
- * Vérifie que l'utilisateur est CHEF_SECTION.
- * Seul le Chef de section peut approuver ou rejeter un contrôle sur pièces.
- * ADMIN, CONTROLEUR, CHEF_EQUIPE ne peuvent pas se substituer au Chef de section.
+ * Vérifie que l'utilisateur est CHEF_BUREAU.
+ * Seul le Chef du bureau compétent peut approuver ou rejeter un contrôle sur pièces.
+ * ADMIN, CONTROLEUR et CHEF_EQUIPE ne peuvent pas se substituer au Chef de bureau.
  */
-export function checkApprobationChefSection(user: CurrentUser | null): CurrentUser {
-  return checkRole(user, ["CHEF_SECTION"]);
+export function checkApprobationChefBureau(user: CurrentUser | null): CurrentUser {
+  return checkRole(user, ["CHEF_BUREAU"]);
 }
 
 /**

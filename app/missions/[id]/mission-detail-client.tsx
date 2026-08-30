@@ -15,7 +15,7 @@ import {
   examineDivision,
   examineDirecteur,
   decideDG,
-  decideChefSection,
+  decideChefBureau,
   designateControleur,
   resetRejectedMission,
   getMissionDocumentDownloadUrl,
@@ -159,7 +159,7 @@ export function MissionDetailClient({
   availableControleurs = [],
 }: MissionDetailClientProps) {
   const [activeModal, setActiveModal] = useState<
-    'EXAMEN_DIVISION' | 'EXAMEN_DIRECTEUR' | 'DECISION_DG' | 'DECISION_CHEF_SECTION' | null
+    'EXAMEN_DIVISION' | 'EXAMEN_DIRECTEUR' | 'DECISION_DG' | 'DECISION_CHEF_BUREAU' | null
   >(null);
 
   const [selectedControleurId, setSelectedControleurId] = useState<string>(
@@ -368,15 +368,15 @@ export function MissionDetailClient({
     mission.statut === 'ATTENTE_DG' &&
     currentUser.role === 'DIRECTEUR_GENERAL';
 
-  const canDecideChefSection =
+  const canDecideChefBureau =
     mission.type_controle === 'SUR_PIECES' &&
-    (mission.statut === 'DEMANDE_SOUMISE' || mission.statut === 'EXAMEN_CHEF_SECTION') &&
-    currentUser.role === 'CHEF_SECTION';
+    (mission.statut === 'DEMANDE_SOUMISE' || mission.statut === 'EXAMEN_CHEF_BUREAU') &&
+    currentUser.role === 'CHEF_BUREAU' && currentUser.bureau_id === mission.bureau_id;
 
   const canDesignate =
     mission.type_controle === 'SUR_PIECES' &&
     mission.statut === 'AUTORISATION_GENEREE' &&
-    (currentUser.role === 'CHEF_SECTION' || currentUser.role === 'CHEF_BUREAU');
+    currentUser.role === 'CHEF_BUREAU' && currentUser.bureau_id === mission.bureau_id;
 
   // Permission de gérer le rapport
   const isChefEquipe =
@@ -393,8 +393,7 @@ export function MissionDetailClient({
     currentUser.role === 'DIRECTEUR_GENERAL' ||
     currentUser.role === 'DIRECTEUR_CONTROLES' ||
     currentUser.role === 'CHEF_DIVISION' ||
-    (currentUser.role === 'CHEF_BUREAU' && currentUser.bureau_id === mission.bureau_id) ||
-    (mission.type_controle === 'SUR_PIECES' && currentUser.role === 'CHEF_SECTION' && currentUser.bureau_id === mission.bureau_id);
+    (currentUser.role === 'CHEF_BUREAU' && currentUser.bureau_id === mission.bureau_id);
 
   const canManageRapport = currentUser.role !== 'ADMIN' && (isChefEquipe || isControleurDesignated || isBureauOrHierarchy);
 
@@ -442,7 +441,7 @@ export function MissionDetailClient({
         )}
 
         {/* Panneau d'actions hiérarchiques contextuelles */}
-        {(canSubmit || canResetDraft || canExamineDivision || canExamineDirecteur || canDecideDG || canDecideChefSection || canDesignate) && (
+        {(canSubmit || canResetDraft || canExamineDivision || canExamineDirecteur || canDecideDG || canDecideChefBureau || canDesignate) && (
           <div className="mt-6 p-4 bg-blue-50/50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/80 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h2 className="text-sm font-bold text-blue-900 dark:text-blue-200">
@@ -504,9 +503,9 @@ export function MissionDetailClient({
                 </button>
               )}
 
-              {canDecideChefSection && (
+              {canDecideChefBureau && (
                 <button
-                  onClick={() => setActiveModal('DECISION_CHEF_SECTION')}
+                  onClick={() => setActiveModal('DECISION_CHEF_BUREAU')}
                   disabled={isProcessing}
                   className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-xs"
                 >
@@ -1020,12 +1019,12 @@ export function MissionDetailClient({
       />
 
       <ValidationModal
-        isOpen={activeModal === 'DECISION_CHEF_SECTION'}
+        isOpen={activeModal === 'DECISION_CHEF_BUREAU'}
         onClose={() => setActiveModal(null)}
-        title="Décision du Chef de Section Contrôle"
+        title="Décision du Chef de Bureau"
         description="L'approbation génère automatiquement l'autorisation officielle de contrôle sur pièces."
         onConfirm={async (decision, motif, commentaire) => {
-          const res = await decideChefSection({
+          const res = await decideChefBureau({
             mission_id: mission.id,
             decision,
             motif,

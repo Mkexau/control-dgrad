@@ -173,7 +173,7 @@ describe('Étape 12 — Tableau de Bord Exécutif & Statistiques Métier', () =>
 
     it('CHEF_SECTION est restreint à son bureau_id', () => {
       const chefSection = {
-        role: 'CHEF_SECTION',
+        role: 'CHEF_BUREAU',
         bureau_id: IDS.bureauSousSol,
       };
 

@@ -42,8 +42,8 @@ const SUR_PLACE_STEPS: { key: MissionStatus; label: string; description: string 
 
 const SUR_PIECES_STEPS: { key: MissionStatus; label: string; description: string }[] = [
   { key: 'BROUILLON', label: 'Brouillon', description: 'Préparation par le Bureau' },
-  { key: 'DEMANDE_SOUMISE', label: 'Soumise', description: 'Transmise au Chef de Section' },
-  { key: 'EXAMEN_CHEF_SECTION', label: 'Examen Section', description: 'Décision Chef de Section' },
+  { key: 'DEMANDE_SOUMISE', label: 'Soumise', description: 'Transmise au Chef de Bureau' },
+  { key: 'EXAMEN_CHEF_BUREAU', label: 'Examen Bureau', description: 'Décision du Chef de Bureau' },
   { key: 'AUTORISATION_GENEREE', label: 'Autorisation', description: 'Autorisation officielle générée' },
   { key: 'CONTROLEUR_DESIGNE', label: 'Contrôleur désigné', description: 'Affectation au contrôleur' },
   { key: 'CONTROLE_EN_COURS', label: 'En cours', description: 'Examen des actes et pièces' },

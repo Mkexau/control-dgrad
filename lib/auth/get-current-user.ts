@@ -32,6 +32,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
       nom,
       prenom,
       bureau_id,
+      division_id,
       bureaux (
         division_id
       )
@@ -48,7 +49,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     return null;
   }
 
-  const divisionId = (profile.bureaux as { division_id?: string } | null)?.division_id ?? null;
+  const divisionId = profile.division_id ?? (profile.bureaux as { division_id?: string } | null)?.division_id ?? null;
 
   // 3. Consolidation et validation Zod
   const rawUser = {

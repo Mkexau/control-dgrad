@@ -78,7 +78,7 @@ export interface AutorisationPiecesData {
   bureauNom: string;
   secteurNom: string;
   motif: string;
-  chefSectionNom: string;
+  chefBureauNom: string;
   dateApprobation: Date;
   assujettis: { nom_raison_sociale: string; identifiant: string }[];
   userId: string;
@@ -169,8 +169,8 @@ Le présent contrôle sur pièces est exécuté au sein des locaux de l'administ
 Il ne comporte aucun déplacement de terrain ni ordre de mission.
 
 ================================================================================
-AUTORITÉ COMPÉTENTE : CHEF DE SECTION CONTRÔLE
-Validé par : ${data.chefSectionNom}
+AUTORITÉ COMPÉTENTE : CHEF DU BUREAU COMPÉTENT
+Validé par : ${data.chefBureauNom}
 Date de décision : ${dateStr}
 Document officiel généré par le système DGRAD Contrôle.
 ================================================================================\n`;
@@ -595,4 +595,3 @@ export async function getSignedDocumentUrl(
 
   return { url: data.signedUrl };
 }
-

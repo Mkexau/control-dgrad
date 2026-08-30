@@ -97,7 +97,7 @@ export function assertCanReadControle(user: CurrentUser | null, controle: Contro
   }
 
   if (
-    ['CHEF_BUREAU', 'CHEF_SECTION', 'ANALYSTE', 'CONSULTATION'].includes(authenticatedUser.role) &&
+    ['CHEF_BUREAU', 'ANALYSTE', 'CONSULTATION'].includes(authenticatedUser.role) &&
     authenticatedUser.bureau_id === controle.mission_bureau_id
   ) {
     return authenticatedUser;
@@ -137,7 +137,7 @@ export function assertCanManageRapportMission(
     return authenticatedUser;
   }
 
-  if (authenticatedUser.role === 'DIRECTEUR_CONTROLES' || authenticatedUser.role === 'CHEF_DIVISION') {
+  if (authenticatedUser.role === 'DIRECTEUR_CONTROLES') {
     return authenticatedUser;
   }
 
@@ -146,9 +146,6 @@ export function assertCanManageRapportMission(
   }
 
   if (mission.type_controle === 'SUR_PIECES') {
-    if (authenticatedUser.role === 'CHEF_SECTION' && authenticatedUser.bureau_id === mission.bureau_id) {
-      return authenticatedUser;
-    }
     if (
       authenticatedUser.role === 'CONTROLEUR' &&
       authenticatedUser.bureau_id === mission.bureau_id &&
@@ -183,12 +180,12 @@ export function assertCanReadMissionDossier(
     throw new ForbiddenError('L’administrateur technique ne peut pas consulter un dossier de mission par défaut.');
   }
 
-  if (['DIRECTEUR_GENERAL', 'DIRECTEUR_CONTROLES', 'CHEF_DIVISION'].includes(authenticatedUser.role)) {
+  if (['DIRECTEUR_GENERAL', 'DIRECTEUR_CONTROLES'].includes(authenticatedUser.role)) {
     return authenticatedUser;
   }
 
   if (
-    ['CHEF_BUREAU', 'CHEF_SECTION', 'ANALYSTE', 'CONSULTATION'].includes(authenticatedUser.role) &&
+    ['CHEF_BUREAU', 'ANALYSTE', 'CONSULTATION'].includes(authenticatedUser.role) &&
     authenticatedUser.bureau_id === mission.bureau_id
   ) {
     return authenticatedUser;
@@ -217,4 +214,3 @@ export function assertCanReadMissionDossier(
 
   throw new ForbiddenError('Vous n’êtes pas autorisé à consulter cette mission.');
 }
-

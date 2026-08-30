@@ -210,26 +210,25 @@ describe('Étape 9 — Workflow SUR_PIECES : Demandes de Renseignements & Workfl
       const canApproveAsChefSection = (role, typeControle) => {
         if (role === 'ADMIN') return false;
         if (typeControle !== 'SUR_PIECES') return false;
-        return role === 'CHEF_SECTION';
+        return role === 'CHEF_BUREAU';
       };
       assert.equal(canApproveAsChefSection('ADMIN', 'SUR_PIECES'), false, 'ADMIN ne peut pas approuver');
-      assert.equal(canApproveAsChefSection('CHEF_SECTION', 'SUR_PIECES'), true, 'CHEF_SECTION peut approuver');
-      assert.equal(canApproveAsChefSection('CHEF_BUREAU', 'SUR_PIECES'), false, 'CHEF_BUREAU ne peut pas approuver');
+      assert.equal(canApproveAsChefSection('CHEF_BUREAU', 'SUR_PIECES'), true, 'CHEF_BUREAU peut approuver');
+      assert.equal(canApproveAsChefSection('CONTROLEUR', 'SUR_PIECES'), false, 'CONTROLEUR ne peut pas approuver');
     });
 
     it('ADMIN ne peut pas désigner un contrôleur (décision métier interdite)', () => {
       const canDesignateControleur = (role) => {
         if (role === 'ADMIN') return false;
-        return role === 'CHEF_SECTION' || role === 'CHEF_BUREAU';
+        return role === 'CHEF_BUREAU';
       };
       assert.equal(canDesignateControleur('ADMIN'), false);
-      assert.equal(canDesignateControleur('CHEF_SECTION'), true);
       assert.equal(canDesignateControleur('CHEF_BUREAU'), true);
     });
 
     it('Autorisation de contrôle ne peut pas être générée avant approbation Chef de section', () => {
       const statutsAvantApprobation = [
-        'BROUILLON', 'DEMANDE_SOUMISE', 'EXAMEN_CHEF_SECTION', 'REJETEE',
+        'BROUILLON', 'DEMANDE_SOUMISE', 'EXAMEN_CHEF_BUREAU', 'REJETEE',
       ];
       const canGenerateAutorisation = (statut) => statut === 'APPROUVEE';
       for (const s of statutsAvantApprobation) {

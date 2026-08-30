@@ -13,7 +13,7 @@ import {
   checkAuthenticated,
   checkAdmin,
   checkApprobationDG,
-  checkApprobationChefSection,
+  checkApprobationChefBureau,
   checkEquipeAccess,
   checkControleurAccess,
   checkBureauAccess,
@@ -48,10 +48,10 @@ const mockDG = {
   is_active: true,
 };
 
-const mockChefSection = {
+const mockChefBureauPieces = {
   id: "dddddddd-dddd-dddd-dddd-dddddddddddd",
   email: "chef.section@dgrad.cd",
-  role: "CHEF_SECTION",
+  role: "CHEF_BUREAU",
   bureau_id: BUREAU_A,
   division_id: null,
   is_active: true,
@@ -138,7 +138,7 @@ test("Scénario 4 — ADMIN : rejet DG refusé", () => {
 
 test("Scénario 5 — ADMIN : approbation CHEF_SECTION refusée", () => {
   assert.throws(
-    () => checkApprobationChefSection(mockAdmin),
+    () => checkApprobationChefBureau(mockAdmin),
     (err) =>
       err instanceof ForbiddenError &&
       err.message.includes("ADMIN"),
@@ -160,8 +160,8 @@ test("Scénario 6 — DIRECTEUR_GENERAL : opération DG autorisée", () => {
 // =============================================================================
 
 test("Scénario 7 — CHEF_SECTION : approbation mission SUR_PIECES autorisée", () => {
-  const user = checkApprobationChefSection(mockChefSection);
-  assert.strictEqual(user.role, "CHEF_SECTION");
+  const user = checkApprobationChefBureau(mockChefBureauPieces);
+  assert.strictEqual(user.role, "CHEF_BUREAU");
 });
 
 // =============================================================================
@@ -170,10 +170,10 @@ test("Scénario 7 — CHEF_SECTION : approbation mission SUR_PIECES autorisée",
 
 test("Scénario 8 — CHEF_SECTION : approbation mission SUR_PLACE (DG) refusée", () => {
   assert.throws(
-    () => checkApprobationDG(mockChefSection),
+    () => checkApprobationDG(mockChefBureauPieces),
     (err) =>
       err instanceof ForbiddenError &&
-      err.message.includes("CHEF_SECTION"),
+      err.message.includes("CHEF_BUREAU"),
     "Le CHEF_SECTION ne peut pas approuver une mission sur place au nom du DG"
   );
 });
@@ -256,7 +256,7 @@ test("CHEF_EQUIPE ne peut pas approuver au nom du DG", () => {
 
 test("CONTROLEUR ne peut pas approuver au nom du CHEF_SECTION", () => {
   assert.throws(
-    () => checkApprobationChefSection(mockControleur),
+    () => checkApprobationChefBureau(mockControleur),
     (err) => err instanceof ForbiddenError,
     "Un contrôleur ne peut pas approuver au nom du Chef de section"
   );

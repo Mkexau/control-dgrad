@@ -35,15 +35,15 @@ const SUR_PLACE_TRANSITIONS = {
   CLOTUREE: [],
   ANNULEE: [],
   DEMANDE_SOUMISE: [],
-  EXAMEN_CHEF_SECTION: [],
+  EXAMEN_CHEF_BUREAU: [],
   AUTORISATION_GENEREE: [],
   CONTROLEUR_DESIGNE: [],
 };
 
 const SUR_PIECES_TRANSITIONS = {
   BROUILLON: ['DEMANDE_SOUMISE', 'ANNULEE'],
-  DEMANDE_SOUMISE: ['EXAMEN_CHEF_SECTION', 'REJETEE', 'ANNULEE'],
-  EXAMEN_CHEF_SECTION: ['APPROUVEE', 'REJETEE', 'ANNULEE'],
+  DEMANDE_SOUMISE: ['EXAMEN_CHEF_BUREAU', 'REJETEE', 'ANNULEE'],
+  EXAMEN_CHEF_BUREAU: ['APPROUVEE', 'REJETEE', 'ANNULEE'],
   APPROUVEE: ['AUTORISATION_GENEREE', 'ANNULEE'],
   AUTORISATION_GENEREE: ['CONTROLEUR_DESIGNE', 'ANNULEE'],
   CONTROLEUR_DESIGNE: ['CONTROLE_EN_COURS', 'ANNULEE'],
@@ -94,8 +94,8 @@ function validateTransitionPermissions(user, currentStatus, nextStatus, typeCont
         throw new ForbiddenError('Seul un agent du Bureau compétent peut soumettre.');
       if (missionBureauId && user.bureau_id && user.bureau_id !== missionBureauId)
         throw new ForbiddenError('Périmètre de bureau invalide.');
-    } else if ((currentStatus === 'EXAMEN_CHEF_SECTION' || currentStatus === 'DEMANDE_SOUMISE') && (nextStatus === 'APPROUVEE' || nextStatus === 'REJETEE')) {
-      if (user.role !== 'CHEF_SECTION') throw new ForbiddenError('Seul le Chef de Section peut approuver ou rejeter un contrôle sur pièces.');
+    } else if ((currentStatus === 'EXAMEN_CHEF_BUREAU' || currentStatus === 'DEMANDE_SOUMISE') && (nextStatus === 'APPROUVEE' || nextStatus === 'REJETEE')) {
+      if (user.role !== 'CHEF_BUREAU') throw new ForbiddenError('Accès réservé au Chef de Bureau.');
     }
   }
 
@@ -110,7 +110,7 @@ function getValidationTypeForRole(role) {
     case 'CHEF_DIVISION': return 'CHEF_DIVISION';
     case 'DIRECTEUR_CONTROLES': return 'DIRECTEUR_CONTROLES';
     case 'DIRECTEUR_GENERAL': return 'DG';
-    case 'CHEF_SECTION': return 'CHEF_SECTION';
+    case 'CHEF_BUREAU': return 'CHEF_BUREAU';
     default: throw new ForbiddenError(`Le rôle '${role}' ne correspond à aucun échelon de validation.`);
   }
 }
@@ -138,7 +138,6 @@ const chefBureau  = { id: 'u1', email: 'chef.bureau@dgrad.cd', role: 'CHEF_BUREA
 const chefDivision = { id: 'u2', email: 'chef.division@dgrad.cd', role: 'CHEF_DIVISION', bureau_id: null, division_id: null, is_active: true };
 const directeur   = { id: 'u3', email: 'directeur@dgrad.cd', role: 'DIRECTEUR_CONTROLES', bureau_id: null, division_id: null, is_active: true };
 const dg          = { id: 'u4', email: 'dg@dgrad.cd', role: 'DIRECTEUR_GENERAL', bureau_id: null, division_id: null, is_active: true };
-const chefSection = { id: 'u5', email: 'chef.section@dgrad.cd', role: 'CHEF_SECTION', bureau_id: bureauA, division_id: null, is_active: true };
 const admin       = { id: 'u6', email: 'admin@dgrad.cd', role: 'ADMIN', bureau_id: null, division_id: null, is_active: true };
 const autrebureau = { id: 'u7', email: 'autre@dgrad.cd', role: 'CHEF_BUREAU', bureau_id: bureauB, division_id: null, is_active: true };
 
@@ -289,20 +288,20 @@ describe('Module Missions — Validation Zod & Moteur de Workflow', () => {
 
     it('SUR_PIECES : Chef de section peut approuver', () => {
       assert.doesNotThrow(() =>
-        validateTransitionPermissions(chefSection, 'EXAMEN_CHEF_SECTION', 'APPROUVEE', 'SUR_PIECES', bureauA)
+        validateTransitionPermissions(chefBureau, 'EXAMEN_CHEF_BUREAU', 'APPROUVEE', 'SUR_PIECES', bureauA)
       );
     });
 
     it('SUR_PIECES : DG NE PEUT PAS approuver dans le workflow SUR_PIECES', () => {
       assert.throws(() =>
-        validateTransitionPermissions(dg, 'EXAMEN_CHEF_SECTION', 'APPROUVEE', 'SUR_PIECES', bureauA),
+        validateTransitionPermissions(dg, 'EXAMEN_CHEF_BUREAU', 'APPROUVEE', 'SUR_PIECES', bureauA),
         ForbiddenError
       );
     });
 
     it('SUR_PIECES : Transition vers ORDRE_MISSION_GENERE inexistante (isolation des workflows)', () => {
       assert.throws(() =>
-        validateTransitionPermissions(chefSection, 'APPROUVEE', 'ORDRE_MISSION_GENERE', 'SUR_PIECES', bureauA),
+        validateTransitionPermissions(chefBureau, 'APPROUVEE', 'ORDRE_MISSION_GENERE', 'SUR_PIECES', bureauA),
         ForbiddenError
       );
     });
@@ -360,7 +359,7 @@ describe('Module Missions — Validation Zod & Moteur de Workflow', () => {
     });
 
     it('getValidationTypeForRole : mappe correctement CHEF_SECTION', () => {
-      assert.strictEqual(getValidationTypeForRole('CHEF_SECTION'), 'CHEF_SECTION');
+      assert.strictEqual(getValidationTypeForRole('CHEF_BUREAU'), 'CHEF_BUREAU');
     });
 
     it('getValidationTypeForRole : lève ForbiddenError pour ADMIN', () => {

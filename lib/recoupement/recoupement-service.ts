@@ -98,7 +98,7 @@ export async function getAssujettis(
     'CONTROLEUR',
   ].includes(user.role);
 
-  if (!isGlobal && ['CHEF_BUREAU', 'ANALYSTE', 'CHEF_SECTION'].includes(user.role)) {
+  if (!isGlobal && ['CHEF_BUREAU', 'ANALYSTE'].includes(user.role)) {
     if (user.bureau_id) {
       // Filtrer par les secteurs du bureau
       const { data: secteurs } = await supabase
@@ -808,7 +808,7 @@ export async function getAnalyses(
     'CONSULTATION',
   ].includes(user.role);
 
-  if (!isGlobal && ['CHEF_BUREAU', 'ANALYSTE', 'CHEF_SECTION'].includes(user.role)) {
+  if (!isGlobal && ['CHEF_BUREAU', 'ANALYSTE'].includes(user.role)) {
     if (user.bureau_id) {
       query = query.eq('bureau_id', user.bureau_id);
     } else {

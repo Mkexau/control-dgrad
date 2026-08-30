@@ -4,10 +4,10 @@
 
 Le modèle utilise des types énumérés stricts pour garantir l'intégrité et la cohérence du workflow :
 
-- **`app_role`** : `'ADMIN'`, `'ANALYSTE'`, `'CHEF_BUREAU'`, `'CHEF_SECTION'`, `'CHEF_DIVISION'`, `'DIRECTEUR_CONTROLES'`, `'DIRECTEUR_GENERAL'`, `'CHEF_EQUIPE'`, `'CONTROLEUR'`, `'CONSULTATION'`
+- **`app_role`** : `'ADMIN'`, `'ANALYSTE'`, `'CHEF_BUREAU'`, `'CHEF_DIVISION'`, `'DIRECTEUR_CONTROLES'`, `'DIRECTEUR_GENERAL'`, `'CHEF_EQUIPE'`, `'CONTROLEUR'`, `'CONSULTATION'`
 - **`mission_type`** : `'SUR_PLACE'`, `'SUR_PIECES'`
-- **`mission_status`** : `'BROUILLON'`, `'SOUMISE'`, `'EXAMEN_CHEF_DIVISION'`, `'EXAMEN_DIRECTEUR_CONTROLES'`, `'ATTENTE_DG'`, `'DEMANDE_SOUMISE'`, `'EXAMEN_CHEF_SECTION'`, `'APPROUVEE'`, `'REJETEE'`, `'ORDRE_MISSION_GENERE'`, `'AUTORISATION_GENEREE'`, `'CONTROLEUR_DESIGNE'`, `'EQUIPES_AFFECTEES'`, `'CONTROLE_EN_COURS'`, `'CONTROLE_TERMINE'`, `'RESULTAT'`, `'PROCES_VERBAL'`, `'FEUILLE_OBSERVATIONS'`, `'RAPPORT'`, `'CLOTUREE'`, `'ANNULEE'`
-- **`validation_type`** : `'CHEF_DIVISION'`, `'DIRECTEUR_CONTROLES'`, `'DG'`, `'CHEF_SECTION'`
+- **`mission_status`** : `'BROUILLON'`, `'SOUMISE'`, `'EXAMEN_CHEF_DIVISION'`, `'EXAMEN_DIRECTEUR_CONTROLES'`, `'ATTENTE_DG'`, `'DEMANDE_SOUMISE'`, `'EXAMEN_CHEF_BUREAU'`, `'APPROUVEE'`, `'REJETEE'`, `'ORDRE_MISSION_GENERE'`, `'AUTORISATION_GENEREE'`, `'CONTROLEUR_DESIGNE'`, `'EQUIPES_AFFECTEES'`, `'CONTROLE_EN_COURS'`, `'CONTROLE_TERMINE'`, `'RESULTAT'`, `'PROCES_VERBAL'`, `'FEUILLE_OBSERVATIONS'`, `'RAPPORT'`, `'CLOTUREE'`, `'ANNULEE'`
+- **`validation_type`** : `'CHEF_DIVISION'`, `'DIRECTEUR_CONTROLES'`, `'DG'`, `'CHEF_BUREAU'`
 - **`validation_status`** : `'APPROUVE'`, `'REJETE'`, `'RETOURNE'`
 - **`equipe_status`** : `'PROPOSEE'`, `'CONFIRMEE'`, `'ANNULEE'`
 - **`controle_status`** : `'EN_ATTENTE'`, `'EN_COURS'`, `'TERMINE'`, `'ANNULE'`
@@ -215,7 +215,7 @@ Le modèle utilise des types énumérés stricts pour garantir l'intégrité et 
 | `motif` | TEXT | OUI | | Justification de la mission |
 | `date_creation` | TIMESTAMPTZ | NON | DEFAULT now() | Date de création |
 | `date_soumission` | TIMESTAMPTZ | OUI | | Date de première soumission |
-| `date_approbation`| TIMESTAMPTZ | OUI | | Date d'approbation DG / Chef Section |
+| `date_approbation`| TIMESTAMPTZ | OUI | | Date d'approbation DG / Chef de Bureau |
 | `date_cloture` | TIMESTAMPTZ | OUI | | Date de clôture |
 | `date_annulation` | TIMESTAMPTZ | OUI | | Date d'annulation |
 | `motif_annulation`| TEXT | OUI | | Motif obligatoire si annulée |
@@ -342,7 +342,7 @@ Le modèle utilise des types énumérés stricts pour garantir l'intégrité et 
 |---|---|---|---|---|
 | `id` | UUID | NON | PRIMARY KEY, DEFAULT gen_random_uuid() | Identifiant unique |
 | `mission_id` | UUID | NON | UNIQUE REFERENCES missions(id) ON DELETE RESTRICT | Mission SUR_PIECES approuvée |
-| `validation_id` | UUID | NON | REFERENCES mission_validations(id) ON DELETE RESTRICT | Décision du Chef de section |
+| `validation_id` | UUID | NON | REFERENCES mission_validations(id) ON DELETE RESTRICT | Décision du Chef de Bureau |
 | `reference` | TEXT | NON | UNIQUE | Référence de l'autorisation |
 | `date_generation` | TIMESTAMPTZ | NON | DEFAULT now() | Date de génération automatique |
 | `generated_by` | UUID | NON | REFERENCES profiles(id) ON DELETE RESTRICT | Utilisateur système / validateur |

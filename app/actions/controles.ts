@@ -145,7 +145,6 @@ export async function demarrerControle(
     } else if (controle.type_controle === 'SUR_PIECES') {
       if (
         controle.controleur_responsable_id !== currentUser.id &&
-        currentUser.role !== 'CHEF_SECTION' &&
         currentUser.role !== 'CHEF_BUREAU'
       ) {
         return {
@@ -271,8 +270,7 @@ export async function enregistrerConstatations(
     if (
       !isChef &&
       !isControleurPieces &&
-      currentUser.role !== 'CHEF_BUREAU' &&
-      currentUser.role !== 'CHEF_SECTION'
+      currentUser.role !== 'CHEF_BUREAU'
     ) {
       return { success: false, error: 'Vous n\'êtes pas autorisé à saisir les constatations pour ce contrôle.' };
     }
@@ -374,8 +372,7 @@ export async function terminerControle(
     if (
       !isChef &&
       !isControleurPieces &&
-      currentUser.role !== 'CHEF_BUREAU' &&
-      currentUser.role !== 'CHEF_SECTION'
+      currentUser.role !== 'CHEF_BUREAU'
     ) {
       return { success: false, error: 'Vous n\'êtes pas autorisé à clôturer ce contrôle.' };
     }

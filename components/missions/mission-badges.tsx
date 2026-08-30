@@ -68,10 +68,10 @@ export function MissionStatusBadge({ statut }: { statut: MissionStatus }) {
         </span>
       );
 
-    case 'EXAMEN_CHEF_SECTION':
+    case 'EXAMEN_CHEF_BUREAU':
       return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-sky-50 text-sky-800 dark:bg-sky-950/50 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
-          Examen Chef de Section
+          Examen Chef de Bureau
         </span>
       );
 
@@ -246,4 +246,3 @@ export function ControleStatusBadge({ statut }: { statut: 'EN_ATTENTE' | 'EN_COU
       );
   }
 }
-

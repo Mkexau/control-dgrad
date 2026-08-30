@@ -8,7 +8,6 @@ export const RoleEnum = z.enum([
   'ADMIN',
   'ANALYSTE',
   'CHEF_BUREAU',
-  'CHEF_SECTION',
   'CHEF_DIVISION',
   'DIRECTEUR_CONTROLES',
   'DIRECTEUR_GENERAL',

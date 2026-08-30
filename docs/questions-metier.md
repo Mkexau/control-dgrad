@@ -105,7 +105,7 @@ Bureau de contrôle
 
 → Demande de contrôle
 
-→ Chef de section
+→ Chef de Bureau du bureau compétent
 
 → Approbation ou rejet
 
@@ -193,9 +193,9 @@ Aucun document supplémentaire n'est bloquant tant que son caractère obligatoir
 
 ## QM-013 — Contrôle sur pièces
 
-Le contrôle sur pièces est initié par le Bureau de contrôle compétent et soumis au Chef de section.
+Le contrôle sur pièces est initié par le Bureau de contrôle compétent et soumis au Chef de Bureau concerné.
 
-Après approbation du Chef de section, le système génère automatiquement une autorisation de contrôle sur pièces.
+Après approbation du Chef de Bureau, le système génère automatiquement une autorisation de contrôle sur pièces.
 
 Cette autorisation constitue la matérialisation applicative de l'approbation.
 
@@ -460,7 +460,7 @@ L'administrateur technique ne reçoit pas automatiquement le pouvoir de :
 
 - approuver une mission au nom du DG ;
 - rejeter une mission au nom du DG ;
-- approuver un contrôle au nom d'un Chef de section ;
+- approuver un contrôle au nom d'un Chef de Bureau ;
 - modifier une décision métier.
 
 **Statut : VALIDÉ**
@@ -484,7 +484,7 @@ Il peut être :
 
 ## QM-034 — Autorisation de contrôle sur pièces
 
-Pour un contrôle sur pièces, l'autorisation est générée automatiquement après approbation du Chef de section.
+Pour un contrôle sur pièces, l'autorisation est générée automatiquement après approbation du Chef de Bureau.
 
 Elle peut être :
 

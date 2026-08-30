@@ -589,9 +589,9 @@ export async function decideDG(
 }
 
 /**
- * 6. Décision du Chef de Section (SUR_PIECES : Approbation ou Rejet)
+ * 6. Décision du Chef de Bureau (SUR_PIECES : Approbation ou Rejet)
  */
-export async function decideChefSection(
+export async function decideChefBureau(
   input: { mission_id: string; decision: 'APPROUVE' | 'REJETE'; motif?: string; commentaire?: string }
 ): Promise<ActionResponse<{ statut: MissionStatus; autorisationRef?: string }>> {
   const currentUser = await requireAuthenticatedUser();
@@ -638,7 +638,7 @@ export async function decideChefSection(
       .from('mission_validations')
       .insert({
         mission_id: mission.id,
-        type_validation: 'CHEF_SECTION',
+        type_validation: 'CHEF_BUREAU',
         validateur_id: currentUser.id,
         statut: parsed.data.decision,
         motif: parsed.data.motif || null,
@@ -669,7 +669,7 @@ export async function decideChefSection(
         bureauNom: (mission.bureaux as unknown as { nom: string })?.nom || 'Bureau de contrôle DGRAD',
         secteurNom: (mission.secteurs as unknown as { nom: string })?.nom || 'Secteur de contrôle',
         motif: mission.motif || 'Contrôle sur pièces',
-        chefSectionNom: `${currentUser.nom || 'Chef'} ${currentUser.prenom || 'de section'}`,
+        chefBureauNom: `${currentUser.nom || 'Chef'} ${currentUser.prenom || 'de bureau'}`,
         dateApprobation: now,
         assujettis: assujettisList,
         userId: currentUser.id,
@@ -681,7 +681,7 @@ export async function decideChefSection(
       // 4. Audit
       await logAuditEvent({
         userId: currentUser.id,
-        action: 'APPROBATION_CHEF_SECTION',
+        action: 'APPROBATION_CHEF_BUREAU',
         entityType: 'missions',
         entityId: mission.id,
         oldData: { statut: mission.statut },
@@ -703,7 +703,7 @@ export async function decideChefSection(
 
       await logAuditEvent({
         userId: currentUser.id,
-        action: 'REJET_CHEF_SECTION',
+        action: 'REJET_CHEF_BUREAU',
         entityType: 'missions',
         entityId: mission.id,
         oldData: { statut: mission.statut },

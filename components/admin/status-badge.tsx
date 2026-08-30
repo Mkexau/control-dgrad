@@ -52,12 +52,6 @@ export function RoleBadge({ role }: { role: string }) {
       text: 'text-sky-700 dark:text-sky-300',
       border: 'border-sky-200 dark:border-sky-800',
     },
-    CHEF_SECTION: {
-      label: 'Chef de Section',
-      bg: 'bg-cyan-50 dark:bg-cyan-950/50',
-      text: 'text-cyan-700 dark:text-cyan-300',
-      border: 'border-cyan-200 dark:border-cyan-800',
-    },
     CHEF_EQUIPE: {
       label: 'Chef d\'Équipe',
       bg: 'bg-teal-50 dark:bg-teal-950/50',

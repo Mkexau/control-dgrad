@@ -730,7 +730,7 @@ describe('Étape 13 — Anti-IDOR : Accès inter-bureaux', async () => {
   });
 
   it('CHEF_SECTION peut lire un assujetti (rôle consultatif)', () => {
-    const chefSection = { ...analyste, role: 'CHEF_SECTION' };
+    const chefSection = { ...analyste, role: 'CHEF_BUREAU' };
     assert.doesNotThrow(() => assertCanReadAssujetti(chefSection, 'bureau-a'));
   });
 

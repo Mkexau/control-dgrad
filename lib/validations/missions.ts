@@ -15,7 +15,7 @@ export const MissionStatusEnum = z.enum([
   'EXAMEN_DIRECTEUR_CONTROLES',
   'ATTENTE_DG',
   'DEMANDE_SOUMISE',
-  'EXAMEN_CHEF_SECTION',
+  'EXAMEN_CHEF_BUREAU',
   'APPROUVEE',
   'REJETEE',
   'ORDRE_MISSION_GENERE',
@@ -37,7 +37,7 @@ export const ValidationTypeEnum = z.enum([
   'CHEF_DIVISION',
   'DIRECTEUR_CONTROLES',
   'DG',
-  'CHEF_SECTION',
+  'CHEF_BUREAU',
 ]);
 export type ValidationType = z.infer<typeof ValidationTypeEnum>;
 
@@ -82,7 +82,7 @@ export const MissionSubmitSchema = z.object({
 });
 export type MissionSubmitInput = z.infer<typeof MissionSubmitSchema>;
 
-// Décision hiérarchique (Chef Division, Directeur Contrôles, DG, Chef Section)
+// Décision hiérarchique (Chef Division, Directeur Contrôles, DG, Chef Bureau)
 export const MissionValidationDecisionSchema = z.object({
   mission_id: z.string().uuid('L\'identifiant de la mission doit être un UUID valide'),
   decision: ValidationStatusEnum,

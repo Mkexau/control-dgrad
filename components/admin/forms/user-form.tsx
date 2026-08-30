@@ -32,7 +32,6 @@ const ROLES = [
   { value: 'DIRECTEUR_CONTROLES', label: 'DIRECTEUR_CONTROLES (Directeur des contrôles et recoupements)' },
   { value: 'CHEF_DIVISION', label: 'CHEF_DIVISION (Chef de Division Contrôle / Recoupement)' },
   { value: 'CHEF_BUREAU', label: 'CHEF_BUREAU (Chef de Bureau)' },
-  { value: 'CHEF_SECTION', label: 'CHEF_SECTION (Chef de section Contrôle)' },
   { value: 'CHEF_EQUIPE', label: 'CHEF_EQUIPE (Chef d\'équipe de terrain)' },
   { value: 'CONTROLEUR', label: 'CONTROLEUR (Contrôleur de terrain / pièces)' },
   { value: 'ANALYSTE', label: 'ANALYSTE (Analyste Recoupement)' },
