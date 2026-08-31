@@ -9,7 +9,6 @@ import Link from 'next/link';
 import type { DashboardMetrics } from '@/lib/stats/stats-service';
 import type { StatsFilterInput } from '@/lib/validations/stats';
 import { fetchDashboardMetrics } from '@/app/actions/stats';
-import { LogoutButton } from '@/components/auth/logout-button';
 
 interface DashboardClientProps {
   initialMetrics: DashboardMetrics;
@@ -91,12 +90,13 @@ export function DashboardClient({
   return (
     <div className="space-y-8 pb-12">
       {/* 1. EN-TÊTE DU TABLEAU DE BORD */}
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-xs">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-6 border-b border-zinc-100 dark:border-zinc-800">
+      <div className="relative overflow-hidden rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
+        <div aria-hidden="true" className="absolute -right-16 -top-20 h-48 w-48 rounded-full bg-blue-50" />
+        <div className="relative flex flex-col gap-4 border-b border-zinc-100 pb-6 lg:flex-row lg:items-center lg:justify-between dark:border-zinc-800">
           <div className="space-y-1.5">
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-                Tableau de Bord Exécutif & Statistiques
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+                Bonjour, {currentUser.prenom || 'Agent'}
               </h1>
               <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
                 {currentUser.role}
@@ -108,7 +108,6 @@ export function DashboardClient({
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <LogoutButton />
             <Link
               href="/missions/nouvelle"
               className="px-3.5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-xs flex items-center gap-1.5"
@@ -139,7 +138,7 @@ export function DashboardClient({
         </div>
 
         {/* Badge d'indication du périmètre organisationnel appliqué (RM-039) */}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="relative mt-4 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400">
             <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
             <span>

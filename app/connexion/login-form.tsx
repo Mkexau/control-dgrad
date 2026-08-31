@@ -5,6 +5,7 @@
 // =============================================================================
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { LoginSchema } from '@/lib/validations/auth';
@@ -75,13 +76,14 @@ export function LoginForm({ redirectTarget }: LoginFormProps) {
   };
 
   return (
-    <div className="w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-8 space-y-6">
+    <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-7 shadow-sm space-y-6 sm:p-9">
       {/* En-tête de l'application */}
       <div className="text-center space-y-2">
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-blue-600 text-white font-black text-xl shadow-md mx-auto mb-2">
-          DG
+        <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 p-1.5">
+          <Image src="/images/branding/dgrad-logo.png" alt="DGRAD" width={48} height={48} className="h-full w-full object-contain" preload />
         </div>
-        <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#0a5db5]">Espace sécurisé</p>
+        <h1 className="text-xl font-bold tracking-tight text-slate-900">
           DGRAD Contrôle
         </h1>
         <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-xs mx-auto">

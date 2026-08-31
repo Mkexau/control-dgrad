@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f6f8fc;
+  --foreground: #15233a;
 }
 
 @theme inline {
@@ -22,5 +22,14 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
+
+* { border-color: rgb(226 232 240); }
+button, input, select, textarea { transition: border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease, transform 180ms ease; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid rgb(56 189 248 / .42); outline-offset: 2px; }
+.institutional-sidebar { background: linear-gradient(165deg, #062b5c 0%, #083f80 54%, #075da8 100%); box-shadow: 14px 0 38px rgb(6 43 92 / .13); }
+.institutional-shell .rounded-xl { border-radius: 0.9rem; }
+.institutional-shell .shadow-xs { box-shadow: 0 1px 2px rgb(15 23 42 / .05); }
+@media (prefers-reduced-motion: no-preference) { .institutional-shell main > * { animation: dgrad-enter 240ms ease-out both; } }
+@keyframes dgrad-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }

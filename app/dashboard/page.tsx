@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth/get-current-user';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getDashboardMetrics } from '@/lib/stats/stats-service';
+import { InstitutionalShell } from '@/components/layout/institutional-shell';
 import { DashboardClient } from './dashboard-client';
 
 export const dynamic = 'force-dynamic';
@@ -43,17 +44,19 @@ export default async function DashboardPage() {
   const initialMetrics = await getDashboardMetrics(currentUser, {});
 
   return (
-    <DashboardClient
-      initialMetrics={initialMetrics}
-      currentUser={{
-        id: currentUser.id,
-        role: currentUser.role,
-        bureau_id: currentUser.bureau_id,
-        nom: currentUser.nom || '',
-        prenom: currentUser.prenom || '',
-      }}
-      availableBureaux={bureaux || []}
-      availableSecteurs={secteurs || []}
-    />
+    <InstitutionalShell user={currentUser}>
+      <DashboardClient
+        initialMetrics={initialMetrics}
+        currentUser={{
+          id: currentUser.id,
+          role: currentUser.role,
+          bureau_id: currentUser.bureau_id,
+          nom: currentUser.nom || '',
+          prenom: currentUser.prenom || '',
+        }}
+        availableBureaux={bureaux || []}
+        availableSecteurs={secteurs || []}
+      />
+    </InstitutionalShell>
   );
 }

@@ -8,6 +8,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import type { MissionStatus, MissionType } from '@/lib/validations/missions';
 import { MissionStatusBadge, MissionTypeBadge } from '@/components/missions/mission-badges';
+import { EmptyState } from '@/components/ui/institutional-state';
 
 export interface MissionListItem {
   id: string;
@@ -50,15 +51,16 @@ export function MissionsClient({
     switch (userRole) {
       case 'CHEF_BUREAU':
       case 'ANALYSTE':
-        return statut === 'BROUILLON' || statut === 'REJETEE';
+        return statut === 'BROUILLON' || statut === 'REJETEE' || (
+          userRole === 'CHEF_BUREAU' && type === 'SUR_PIECES' &&
+          (statut === 'DEMANDE_SOUMISE' || statut === 'EXAMEN_CHEF_BUREAU' || statut === 'AUTORISATION_GENEREE')
+        );
       case 'CHEF_DIVISION':
         return type === 'SUR_PLACE' && (statut === 'SOUMISE' || statut === 'EXAMEN_CHEF_DIVISION');
       case 'DIRECTEUR_CONTROLES':
         return type === 'SUR_PLACE' && statut === 'EXAMEN_DIRECTEUR_CONTROLES';
       case 'DIRECTEUR_GENERAL':
         return type === 'SUR_PLACE' && statut === 'ATTENTE_DG';
-      case 'CHEF_SECTION':
-        return type === 'SUR_PIECES' && (statut === 'DEMANDE_SOUMISE' || statut === 'EXAMEN_CHEF_SECTION' || statut === 'AUTORISATION_GENEREE');
       default:
         return false;
     }
@@ -313,8 +315,12 @@ export function MissionsClient({
                 })
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-zinc-500 dark:text-zinc-400 text-sm">
-                    Aucune mission trouvée pour les critères sélectionnés.
+                  <td colSpan={6} className="px-6 py-8">
+                    <EmptyState
+                      compact
+                      title="Aucune mission trouvée"
+                      description="Aucune mission ne correspond aux filtres sélectionnés dans votre périmètre."
+                    />
                   </td>
                 </tr>
               )}

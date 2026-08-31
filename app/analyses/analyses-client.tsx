@@ -6,6 +6,7 @@ import {
   createAnalyseAction,
 } from '@/app/actions/analyses';
 import type { AnalyseItem } from '@/lib/recoupement/recoupement-service';
+import { EmptyState } from '@/components/ui/institutional-state';
 
 interface Bureau {
   id: string;
@@ -145,9 +146,12 @@ export function AnalysesClient({ currentUser, availableBureaux, initialData }: P
       {/* Liste */}
       <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-xs">
         {isLoading ? (
-          <div className="p-12 text-center text-zinc-400">Chargement…</div>
+          <div className="p-12 text-center text-sm text-slate-500" role="status">Chargement des dossiers…</div>
         ) : analyses.length === 0 ? (
-          <div className="p-12 text-center text-zinc-400">Aucun dossier d'analyse trouvé.</div>
+          <EmptyState
+            title="Aucun dossier d’analyse"
+            description="Les dossiers accessibles dans votre périmètre apparaîtront ici."
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
