@@ -94,7 +94,7 @@ export async function createEquipe(
     // 2. Vérifier le Chef d'équipe
     const { data: chefAgent, error: chefError } = await adminSupabase
       .from('agents')
-      .select('id, matricule, actif, profile_id, profiles(nom, prenom, bureau_id)')
+      .select('id, matricule, actif, bureau_id, profiles(nom, prenom, bureau_id)')
       .eq('id', chef_equipe_id)
       .single();
 
@@ -106,12 +106,17 @@ export async function createEquipe(
       return { success: false, error: 'Le chef d\'équipe désigné est inactif.' };
     }
 
+    const chefBureau = chefAgent.bureau_id || (chefAgent.profiles as unknown as { bureau_id?: string })?.bureau_id;
+    if (chefBureau && chefBureau !== mission.bureau_id) {
+      return { success: false, error: 'Le chef d\'équipe doit appartenir au bureau compétent pour cette mission.' };
+    }
+
     // 3. Vérifier les agents
     if (agents_ids.length > 0) {
       const uniqueAgentsIds = Array.from(new Set(agents_ids));
       const { data: activeAgents } = await adminSupabase
         .from('agents')
-        .select('id, matricule, actif')
+        .select('id, matricule, actif, bureau_id, profiles(bureau_id)')
         .in('id', uniqueAgentsIds);
 
       const foundMap = new Map((activeAgents || []).map((a) => [a.id, a]));
@@ -122,6 +127,10 @@ export async function createEquipe(
         }
         if (!ag.actif) {
           return { success: false, error: `L'agent matricule '${ag.matricule}' est inactif et ne peut pas être affecté.` };
+        }
+        const agBureau = ag.bureau_id || (ag.profiles as unknown as { bureau_id?: string })?.bureau_id;
+        if (agBureau && agBureau !== mission.bureau_id) {
+          return { success: false, error: `L'agent matricule '${ag.matricule}' n'appartient pas au bureau de la mission.` };
         }
       }
     }
@@ -348,12 +357,18 @@ export async function addAgentToEquipe(
     // Vérifier l'agent
     const { data: agent } = await adminSupabase
       .from('agents')
-      .select('id, matricule, actif')
+      .select('id, matricule, actif, bureau_id, profiles(bureau_id)')
       .eq('id', parsed.data.agent_id)
       .single();
 
     if (!agent || !agent.actif) {
       return { success: false, error: 'Agent introuvable ou inactif.' };
+    }
+
+    const missionBureau = (equipe.missions as unknown as { bureau_id?: string })?.bureau_id;
+    const agBureau = agent.bureau_id || (agent.profiles as unknown as { bureau_id?: string })?.bureau_id;
+    if (agBureau && missionBureau && agBureau !== missionBureau) {
+      return { success: false, error: 'L\'agent n\'appartient pas au bureau de la mission.' };
     }
 
     // Vérifier s'il est déjà dans l'équipe

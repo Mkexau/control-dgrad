@@ -33,9 +33,15 @@ interface AssujettiItem {
 interface AgentItem {
   id: string;
   matricule: string;
+  nom?: string | null;
+  prenom?: string | null;
+  bureau_id?: string | null;
+  secteur_id?: string | null;
+  specialite?: string | null;
   profiles?: {
     nom: string;
     prenom: string;
+    bureau_id?: string | null;
   } | null;
 }
 
@@ -84,6 +90,18 @@ export function MissionCreateForm({
 
   // Filtrer les secteurs selon le bureau sélectionné (RM-001)
   const availableSecteurs = secteurs.filter((s) => s.bureau_id === bureauId);
+
+  // Filtrer les agents selon le bureau sélectionné et prioriser selon le secteur de spécialité
+  const bureauAgents = agents
+    .filter((ag) => !bureauId || (ag.bureau_id || ag.profiles?.bureau_id) === bureauId)
+    .sort((a, b) => {
+      const aMatch = a.secteur_id === secteurId ? 1 : 0;
+      const bMatch = b.secteur_id === secteurId ? 1 : 0;
+      if (bMatch !== aMatch) return bMatch - aMatch;
+      const nameA = `${a.nom || a.profiles?.nom || ''} ${a.prenom || a.profiles?.prenom || ''}`;
+      const nameB = `${b.nom || b.profiles?.nom || ''} ${b.prenom || b.profiles?.prenom || ''}`;
+      return nameA.localeCompare(nameB);
+    });
 
   const handleBureauChange = (newBureauId: string) => {
     setBureauId(newBureauId);
@@ -444,24 +462,30 @@ export function MissionCreateForm({
                       required
                       className="w-full px-3 py-2 text-xs bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg focus:outline-hidden"
                     >
-                      {agents.map((ag) => (
-                        <option key={ag.id} value={ag.id}>
-                          {ag.profiles?.nom} {ag.profiles?.prenom} ({ag.matricule})
-                        </option>
-                      ))}
+                      {bureauAgents.map((ag) => {
+                        const nomComplet = `${ag.prenom || ag.profiles?.prenom || ''} ${ag.nom || ag.profiles?.nom || ''}`.trim() || ag.matricule;
+                        const isMatch = ag.secteur_id === secteurId;
+                        return (
+                          <option key={ag.id} value={ag.id}>
+                            {isMatch ? '★ ' : ''}{nomComplet} ({ag.matricule}){ag.specialite ? ` — ${ag.specialite}` : ''}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
 
                   {/* Agents membres */}
                   <div>
                     <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 uppercase mb-1">
-                      Agents de terrain affectés *
+                      Agents de terrain affectés * ({bureauAgents.length} disponibles pour ce bureau)
                     </label>
-                    <div className="max-h-32 overflow-y-auto border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-lg p-2 space-y-1">
-                      {agents.map((ag) => {
+                    <div className="max-h-40 overflow-y-auto border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-lg p-2 space-y-1">
+                      {bureauAgents.map((ag) => {
                         const isAgentSelected = eq.agents_ids.includes(ag.id);
+                        const nomComplet = `${ag.prenom || ag.profiles?.prenom || ''} ${ag.nom || ag.profiles?.nom || ''}`.trim() || ag.matricule;
+                        const isMatch = ag.secteur_id === secteurId;
                         return (
-                          <label key={ag.id} className="flex items-center gap-2 text-xs text-zinc-800 dark:text-zinc-200 cursor-pointer">
+                          <label key={ag.id} className="flex items-center gap-2 text-xs text-zinc-800 dark:text-zinc-200 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50 p-1 rounded-sm">
                             <input
                               type="checkbox"
                               checked={isAgentSelected}
@@ -474,7 +498,11 @@ export function MissionCreateForm({
                               }}
                               className="w-3.5 h-3.5 text-blue-600 rounded-xs"
                             />
-                            <span>{ag.profiles?.nom} {ag.profiles?.prenom} ({ag.matricule})</span>
+                            <span>
+                              {isMatch && <span className="text-blue-600 font-bold mr-1">★</span>}
+                              <strong>{nomComplet}</strong> ({ag.matricule})
+                              {ag.specialite && <span className="text-zinc-500 text-[10px] ml-1">— {ag.specialite}</span>}
+                            </span>
                           </label>
                         );
                       })}

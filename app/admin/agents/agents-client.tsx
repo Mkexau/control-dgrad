@@ -37,6 +37,8 @@ export function AgentsClient({ initialAgents, profilesList }: AgentsClientProps)
     const query = searchQuery.toLowerCase();
     const matchesSearch =
       ag.matricule.toLowerCase().includes(query) ||
+      (ag.nom && ag.nom.toLowerCase().includes(query)) ||
+      (ag.prenom && ag.prenom.toLowerCase().includes(query)) ||
       (ag.profiles?.nom && ag.profiles.nom.toLowerCase().includes(query)) ||
       (ag.profiles?.prenom && ag.profiles.prenom.toLowerCase().includes(query)) ||
       (ag.specialite && ag.specialite.toLowerCase().includes(query));
@@ -92,43 +94,38 @@ export function AgentsClient({ initialAgents, profilesList }: AgentsClientProps)
       {/* En-tête */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Agents de Contrôle</h1>
+          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Agents de Contrôle & de Recette</h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
             Gestion des matricules, compétences techniques et disponibilités des agents pour les équipes de mission.
           </p>
         </div>
         <button
           onClick={handleOpenCreate}
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-xs"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Enregistrer un Agent
+          <span>+</span>
+          <span>Nouvel Agent</span>
         </button>
       </div>
 
-      {/* Filtres */}
-      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-white dark:bg-zinc-900 p-4 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xs">
-        <div className="w-full sm:w-80 relative">
+      {/* Barre de filtre et recherche */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex-1 relative">
           <input
             type="text"
+            placeholder="Rechercher par matricule, nom, prénom, spécialité..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Rechercher par matricule, nom ou spécialité..."
-            className="w-full pl-9 pr-3 py-2 text-sm bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-9 pr-4 py-2 text-sm bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500"
           />
-          <svg className="w-4 h-4 text-zinc-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+          <span className="absolute left-3 top-2.5 text-zinc-400 text-sm">🔍</span>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Disponibilité :</span>
+        <div className="w-full sm:w-60">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as 'ALL' | 'ACTIVE' | 'INACTIVE')}
-            className="px-3 py-2 text-sm bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 text-sm bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500"
           >
             <option value="ALL">Tous ({agents.length})</option>
             <option value="ACTIVE">Disponibles / Actifs ({agents.filter((a) => a.actif).length})</option>
@@ -145,7 +142,7 @@ export function AgentsClient({ initialAgents, profilesList }: AgentsClientProps)
               <tr>
                 <th className="px-6 py-3.5">Matricule</th>
                 <th className="px-6 py-3.5">Agent / Profil</th>
-                <th className="px-6 py-3.5">Rôle</th>
+                <th className="px-6 py-3.5">Rôle / Type</th>
                 <th className="px-6 py-3.5">Spécialité & Compétence</th>
                 <th className="px-6 py-3.5">Disponibilité</th>
                 <th className="px-6 py-3.5 text-right">Actions</th>
@@ -168,12 +165,27 @@ export function AgentsClient({ initialAgents, profilesList }: AgentsClientProps)
                             {ag.profiles.email}
                           </div>
                         </div>
+                      ) : ag.nom ? (
+                        <div>
+                          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+                            {ag.nom} {ag.prenom}
+                          </div>
+                          <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                            {ag.bureaux?.nom || 'Bureau'} {ag.secteurs ? `· ${ag.secteurs.nom}` : ''}
+                          </div>
+                        </div>
                       ) : (
-                        <span className="text-zinc-400 italic">Profil non lié</span>
+                        <span className="text-zinc-400 italic">Agent de recette</span>
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      {ag.profiles && <RoleBadge role={ag.profiles.role} />}
+                      {ag.profiles ? (
+                        <RoleBadge role={ag.profiles.role} />
+                      ) : (
+                        <span className="inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-[#0a5db5] border border-blue-200">
+                          AGENT DE RECETTE
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-xs text-zinc-600 dark:text-zinc-300">
                       {ag.specialite ? (

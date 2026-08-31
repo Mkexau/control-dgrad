@@ -38,7 +38,7 @@ export default async function NouvelleMissionPage() {
         .order('nom_raison_sociale', { ascending: true }),
       supabase
         .from('agents')
-        .select('id, matricule, profiles(nom, prenom)')
+        .select('id, matricule, nom, prenom, bureau_id, secteur_id, specialite, profiles(nom, prenom, bureau_id)')
         .eq('actif', true)
         .order('matricule', { ascending: true }),
     ]);
@@ -53,7 +53,12 @@ export default async function NouvelleMissionPage() {
         (agents as unknown as {
           id: string;
           matricule: string;
-          profiles: { nom: string; prenom: string } | null;
+          nom?: string | null;
+          prenom?: string | null;
+          bureau_id?: string | null;
+          secteur_id?: string | null;
+          specialite?: string | null;
+          profiles?: { nom: string; prenom: string; bureau_id?: string | null } | null;
         }[]) || []
       }
     />

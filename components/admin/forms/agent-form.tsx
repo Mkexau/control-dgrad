@@ -9,8 +9,12 @@ import { createAgent, updateAgent } from '@/app/actions/admin-users';
 
 export interface AgentRecord {
   id: string;
-  profile_id: string;
+  profile_id?: string | null;
   matricule: string;
+  nom?: string | null;
+  prenom?: string | null;
+  bureau_id?: string | null;
+  secteur_id?: string | null;
   specialite?: string | null;
   domaine_competence?: string | null;
   actif: boolean;
@@ -22,6 +26,8 @@ export interface AgentRecord {
     role: string;
     bureaux?: { code: string; nom: string } | null;
   } | null;
+  bureaux?: { code: string; nom: string } | null;
+  secteurs?: { code: string; nom: string } | null;
 }
 
 interface AgentFormProps {

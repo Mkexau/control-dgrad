@@ -99,21 +99,27 @@ export default async function EquipeDetailPage({ params }: EquipeDetailPageProps
 
   const missionObj = equipe.missions as unknown as { statut: string; bureau_id: string } | null;
   if (equipe.statut === 'PROPOSEE' && missionObj?.statut === 'BROUILLON') {
-    // Agents actifs du bureau ou globaux
+    // Agents actifs du bureau de la mission
     const { data: agentsList } = await supabase
       .from('agents')
-      .select('id, matricule, profiles(nom, prenom, bureau_id)')
+      .select('id, matricule, nom, prenom, bureau_id, profiles(nom, prenom, bureau_id)')
       .eq('actif', true);
 
-    availableAgents = (agentsList || []).map((ag) => {
-      const p = ag.profiles as unknown as { nom: string; prenom: string } | null;
-      return {
-        id: ag.id,
-        matricule: ag.matricule,
-        nom: p?.nom || '',
-        prenom: p?.prenom || '',
-      };
-    });
+    availableAgents = (agentsList || [])
+      .filter((ag) => {
+        const p = ag.profiles as unknown as { bureau_id?: string } | null;
+        const bId = ag.bureau_id || p?.bureau_id;
+        return !missionObj?.bureau_id || bId === missionObj.bureau_id;
+      })
+      .map((ag) => {
+        const p = ag.profiles as unknown as { nom: string; prenom: string } | null;
+        return {
+          id: ag.id,
+          matricule: ag.matricule,
+          nom: ag.nom || p?.nom || '',
+          prenom: ag.prenom || p?.prenom || '',
+        };
+      });
 
     // Assujettis rattachés à la mission
     const { data: missionAssujettis } = await supabase
