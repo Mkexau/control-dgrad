@@ -58,6 +58,13 @@ export async function createMission(
     return { success: false, error: 'L\'administrateur technique ne peut pas créer de mission métier.' };
   }
 
+  // Vérifier le périmètre bureau pour le Chef de bureau ou Analyste
+  if (['CHEF_BUREAU', 'ANALYSTE'].includes(currentUser.role)) {
+    if (!currentUser.bureau_id || currentUser.bureau_id !== input.bureau_id) {
+      return { success: false, error: 'Vous ne pouvez créer une mission que pour votre propre bureau de contrôle.' };
+    }
+  }
+
   const { type_controle, bureau_id, secteur_id, motif, assujettis_ids, equipes_propositions } = parsed.data;
   const adminSupabase = createAdminClient();
 
@@ -75,6 +82,77 @@ export async function createMission(
           success: false,
           error: 'Le secteur sélectionné ne relève pas de la compétence du Bureau de contrôle désigné (RM-001).',
         };
+      }
+    }
+
+    // Vérifier que tous les assujettis sélectionnés existent et sont actifs
+    const { data: assujettisList } = await adminSupabase
+      .from('assujettis')
+      .select('id, secteur_principal_id, actif')
+      .in('id', assujettis_ids);
+
+    if (!assujettisList || assujettisList.length !== assujettis_ids.length) {
+      return { success: false, error: 'Un ou plusieurs assujettis sélectionnés sont introuvables.' };
+    }
+
+    if (assujettisList.some((assujetti) => !assujetti.actif)) {
+      return { success: false, error: 'Un ou plusieurs assujettis sélectionnés sont inactifs.' };
+    }
+
+    if (secteur_id && assujettisList.some((assujetti) => assujetti.secteur_principal_id !== secteur_id)) {
+      return { success: false, error: 'Toutes les entreprises sélectionnées doivent appartenir au secteur de la mission.' };
+    }
+
+    // Vérifier les agents et chefs d'équipe pour les équipes de terrain
+    if (type_controle === 'SUR_PLACE' && equipes_propositions && equipes_propositions.length > 0) {
+      const allChefIds = equipes_propositions.map((eq) => eq.chef_equipe_id);
+      const allAgentIds = Array.from(new Set(equipes_propositions.flatMap((eq) => eq.agents_ids)));
+      const checkAgentIds = Array.from(new Set([...allChefIds, ...allAgentIds]));
+
+      const { data: verifiedAgents } = await adminSupabase
+        .from('agents')
+        .select('id, matricule, actif, bureau_id, profiles(bureau_id)')
+        .in('id', checkAgentIds);
+
+      const agentMap = new Map((verifiedAgents || []).map((a) => [a.id, a]));
+
+      // Vérification anti-doublon d'assujettis entre équipes
+      const assignedAssujettiIds = new Set<string>();
+
+      for (const eq of equipes_propositions) {
+        const chef = agentMap.get(eq.chef_equipe_id);
+        if (!chef || !chef.actif) {
+          return { success: false, error: 'Un chef d\'équipe désigné est invalide ou inactif.' };
+        }
+        const chefBureau = chef.bureau_id || (chef.profiles as unknown as { bureau_id?: string })?.bureau_id;
+        if (chefBureau !== bureau_id) {
+          return { success: false, error: 'Le chef d\'équipe doit appartenir au bureau compétent pour la mission.' };
+        }
+
+        for (const agId of eq.agents_ids) {
+          const ag = agentMap.get(agId);
+          if (!ag || !ag.actif) {
+            return { success: false, error: 'Un agent désigné est invalide ou inactif.' };
+          }
+          const agBureau = ag.bureau_id || (ag.profiles as unknown as { bureau_id?: string })?.bureau_id;
+          if (agBureau !== bureau_id) {
+            return { success: false, error: `L'agent matricule '${ag.matricule}' n'appartient pas au bureau de la mission.` };
+          }
+        }
+
+        for (const aId of eq.assujettis_ids) {
+          if (!assujettis_ids.includes(aId)) {
+            return { success: false, error: 'Une entreprise non sélectionnée a été attribuée à une équipe.' };
+          }
+          if (assignedAssujettiIds.has(aId)) {
+            return { success: false, error: 'Une même entreprise ne peut pas être attribuée à plusieurs équipes d\'une même mission.' };
+          }
+          assignedAssujettiIds.add(aId);
+        }
+      }
+
+      if (assignedAssujettiIds.size !== assujettis_ids.length) {
+        return { success: false, error: 'Chaque entreprise sélectionnée doit être affectée à une équipe.' };
       }
     }
 

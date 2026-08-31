@@ -2,6 +2,7 @@ import React from 'react';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth/get-current-user';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getMissionPreparationData } from '@/app/actions/mission-preparation';
 import { MissionCreateForm } from './mission-create-form';
 
 export const dynamic = 'force-dynamic';
@@ -19,48 +20,32 @@ export default async function NouvelleMissionPage() {
 
   const supabase = createAdminClient();
 
-  const [{ data: bureaux }, { data: secteurs }, { data: assujettis }, { data: agents }] =
-    await Promise.all([
-      supabase
-        .from('bureaux')
-        .select('id, code, nom')
-        .eq('actif', true)
-        .order('code', { ascending: true }),
-      supabase
-        .from('secteurs')
-        .select('id, bureau_id, code, nom')
-        .eq('actif', true)
-        .order('code', { ascending: true }),
-      supabase
-        .from('assujettis')
-        .select('id, nom_raison_sociale, identifiant, secteur_principal_id')
-        .eq('actif', true)
-        .order('nom_raison_sociale', { ascending: true }),
-      supabase
-        .from('agents')
-        .select('id, matricule, nom, prenom, bureau_id, secteur_id, specialite, profiles(nom, prenom, bureau_id)')
-        .eq('actif', true)
-        .order('matricule', { ascending: true }),
-    ]);
+  // Récupérer le référentiel organisationnel (bureaux et secteurs)
+  const [{ data: bureaux }, { data: secteurs }, prepResult] = await Promise.all([
+    supabase
+      .from('bureaux')
+      .select('id, code, nom')
+      .eq('actif', true)
+      .order('code', { ascending: true }),
+    supabase
+      .from('secteurs')
+      .select('id, bureau_id, code, nom')
+      .eq('actif', true)
+      .order('code', { ascending: true }),
+    getMissionPreparationData(),
+  ]);
+
+  const prepData = prepResult.success ? prepResult.data : null;
 
   return (
     <MissionCreateForm
-      userBureauId={currentUser.bureau_id}
-      bureaux={bureaux || []}
-      secteurs={secteurs || []}
-      assujettis={assujettis || []}
-      agents={
-        (agents as unknown as {
-          id: string;
-          matricule: string;
-          nom?: string | null;
-          prenom?: string | null;
-          bureau_id?: string | null;
-          secteur_id?: string | null;
-          specialite?: string | null;
-          profiles?: { nom: string; prenom: string; bureau_id?: string | null } | null;
-        }[]) || []
-      }
+      userBureauId={currentUser.bureau_id ?? null}
+      bureaux={bureaux ?? []}
+      secteurs={secteurs ?? []}
+      synthese={prepData?.synthese ?? []}
+      secteurPrioritaireId={prepData?.secteurPrioritaireId ?? null}
+      assujettisParSecteur={prepData?.assujettisParSecteur ?? {}}
+      agents={prepData?.agents ?? []}
     />
   );
 }
