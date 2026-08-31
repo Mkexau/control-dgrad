@@ -531,19 +531,21 @@ export async function creerFicheOrdonnancement(
   const validated = FicheOrdonnancementCreateSchema.parse(input);
   const supabase = createAdminClient();
 
-  // 1. Vérifier information reçue
-  const { data: info, error: infoErr } = await supabase
-    .from('informations_recues')
-    .select('id, statut, numero_reference')
-    .eq('id', validated.information_recue_id)
-    .single();
+  // 1. Vérifier information reçue si fournie
+  if (validated.information_recue_id) {
+    const { data: info, error: infoErr } = await supabase
+      .from('informations_recues')
+      .select('id, statut, numero_reference')
+      .eq('id', validated.information_recue_id)
+      .single();
 
-  if (infoErr || !info) {
-    throw new Error('L’information reçue source est introuvable.');
-  }
+    if (infoErr || !info) {
+      throw new Error('L’information reçue source est introuvable.');
+    }
 
-  if (info.statut === 'TRAITE') {
-    throw new Error('Une fiche d’ordonnancement a déjà été créée pour cette information reçue.');
+    if (info.statut === 'TRAITE') {
+      throw new Error('Une fiche d’ordonnancement a déjà été créée pour cette information reçue.');
+    }
   }
 
   // 2. Vérifier assujetti, secteur et bureau
@@ -564,7 +566,7 @@ export async function creerFicheOrdonnancement(
     .from('fiches_ordonnancement')
     .insert({
       numero_fiche: numeroFiche,
-      information_recue_id: validated.information_recue_id,
+      information_recue_id: validated.information_recue_id || null,
       assujetti_id: validated.assujetti_id,
       secteur_id: validated.secteur_id,
       bureau_id: validated.bureau_id,
@@ -587,17 +589,19 @@ export async function creerFicheOrdonnancement(
     throw new Error(`Erreur lors de la création de la fiche d’ordonnancement : ${ficheErr?.message}`);
   }
 
-  // 4. Mettre à jour l'information reçue en statut 'TRAITE' et lier l'assujetti
-  await supabase
-    .from('informations_recues')
-    .update({
-      statut: 'TRAITE',
-      assujetti_id: validated.assujetti_id,
-      traite_par: user.id,
-      date_traitement: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', validated.information_recue_id);
+  // 4. Mettre à jour l'information reçue si présente
+  if (validated.information_recue_id) {
+    await supabase
+      .from('informations_recues')
+      .update({
+        statut: 'TRAITE',
+        assujetti_id: validated.assujetti_id,
+        traite_par: user.id,
+        date_traitement: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', validated.information_recue_id);
+  }
 
   // 5. Enregistrer ou mettre à jour la note de perception unitaire dans la table historique
   if (validated.montant_cdf > 0) {

@@ -19,6 +19,7 @@ type ShellUser = {
 
 const navigationGeneral = [
   { href: '/dashboard', label: 'Tableau de bord', icon: '▦' },
+  { href: '/controles/ordonnancements', label: 'Données d’ordonnancement', icon: '📋' },
   { href: '/missions', label: 'Missions', icon: '◇' },
   { href: '/equipes', label: 'Équipes', icon: '◌' },
   { href: '/assujettis', label: 'Assujettis', icon: '◈' },
@@ -27,18 +28,15 @@ const navigationGeneral = [
 
 const navigationRecoupement = [
   { href: '/dashboard', label: 'Tableau de bord', icon: '▦' },
-  { href: '/recoupement/informations-recues', label: 'Informations reçues', icon: '📥' },
   { href: '/assujettis', label: 'Assujettis', icon: '◈' },
   { href: '/recoupement/fiches-ordonnancement', label: 'Fiches d’ordonnancement', icon: '📋' },
-  { href: '/analyses', label: 'Analyses & Recoupement', icon: '◫' },
-  { href: '/recoupement/transmissions', label: 'Transmissions', icon: '📤' },
 ];
 
 const pageTitles: Record<string, string> = {
   dashboard: 'Tableau de bord',
   missions: 'Missions de contrôle',
   equipes: 'Équipes de terrain',
-  controles: 'Contrôles',
+  controles: 'Contrôles & Données d’ordonnancement',
   assujettis: 'Assujettis',
   analyses: 'Analyses et recoupements',
   recoupement: 'Recoupement & Ordonnancement',

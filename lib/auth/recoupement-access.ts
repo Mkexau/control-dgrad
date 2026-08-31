@@ -40,6 +40,14 @@ export function assertCanReadAssujetti(
     return authenticatedUser;
   }
 
+  // Bureau Analyse et Recoupement ou Division Recoupement (accès au répertoire global)
+  if (
+    authenticatedUser.bureau_code === 'BUR_ANA_REC' ||
+    authenticatedUser.division_code === 'DIV_REC'
+  ) {
+    return authenticatedUser;
+  }
+
   // Chef de bureau et Analyste : selon le bureau
   if (['CHEF_BUREAU', 'ANALYSTE'].includes(authenticatedUser.role)) {
     if (!authenticatedUser.bureau_id || (assujettiBureauId && authenticatedUser.bureau_id !== assujettiBureauId)) {
@@ -72,7 +80,12 @@ export function assertCanManageAssujetti(
   if (!authenticatedUser.bureau_id) {
     throw new ForbiddenError('Votre profil doit être rattaché à un bureau compétent.');
   }
-  if (targetBureauId && authenticatedUser.bureau_id !== targetBureauId) {
+
+  const isRecoupementBureau =
+    authenticatedUser.bureau_code === 'BUR_ANA_REC' ||
+    authenticatedUser.division_code === 'DIV_REC';
+
+  if (!isRecoupementBureau && targetBureauId && authenticatedUser.bureau_id !== targetBureauId) {
     throw new ForbiddenError('Vous ne pouvez pas gérer un assujetti rattaché à un autre bureau de contrôle.');
   }
 
@@ -94,7 +107,12 @@ export function assertCanManageRecoupement(
   if (!authenticatedUser.bureau_id) {
     throw new ForbiddenError('Votre profil doit être rattaché à un bureau de contrôle.');
   }
-  if (assujettiBureauId && authenticatedUser.bureau_id !== assujettiBureauId) {
+
+  const isRecoupementBureau =
+    authenticatedUser.bureau_code === 'BUR_ANA_REC' ||
+    authenticatedUser.division_code === 'DIV_REC';
+
+  if (!isRecoupementBureau && assujettiBureauId && authenticatedUser.bureau_id !== assujettiBureauId) {
     throw new ForbiddenError('Cet assujetti ne relève pas de votre bureau de contrôle.');
   }
 

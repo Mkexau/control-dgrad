@@ -232,10 +232,12 @@ export function InformationsRecuesClient({
             <table className="w-full text-left text-xs">
               <thead className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-600">
                 <tr>
-                  <th className="px-4 py-3.5">Référence / Date</th>
-                  <th className="px-4 py-3.5">Assujetti Déclaré</th>
-                  <th className="px-4 py-3.5">Secteur déclaré</th>
-                  <th className="px-4 py-3.5">Informations source</th>
+                  <th className="px-4 py-3.5">Référence de réception</th>
+                  <th className="px-4 py-3.5">Date de réception</th>
+                  <th className="px-4 py-3.5">Assujetti déclaré</th>
+                  <th className="px-4 py-3.5">NIF</th>
+                  <th className="px-4 py-3.5">Secteur d&apos;activité déclaré</th>
+                  <th className="px-4 py-3.5">Forme juridique</th>
                   <th className="px-4 py-3.5 text-center">Statut</th>
                   <th className="px-4 py-3.5 text-right">Action</th>
                 </tr>
@@ -243,42 +245,31 @@ export function InformationsRecuesClient({
               <tbody className="divide-y divide-slate-100 text-slate-700">
                 {data.informations.map((info) => {
                   const badge = STATUT_BADGES[info.statut] || { label: info.statut, bg: 'bg-slate-50', text: 'text-slate-700' };
-                  const isAssujettiLie = !!info.assujetti_id;
 
                   return (
                     <tr key={info.id} className="hover:bg-slate-50/60 transition">
-                      <td className="px-4 py-3 font-medium">
-                        <span className="font-mono font-bold text-[#0a5db5]">{info.numero_reference}</span>
-                        <p className="text-[11px] text-slate-400">Reçu le {info.date_reception}</p>
+                      <td className="px-4 py-3 font-mono font-bold text-[#0a5db5]">
+                        {info.numero_reference}
                       </td>
 
-                      <td className="px-4 py-3">
-                        <p className="font-semibold text-slate-900">{info.nom_assujetti_declare}</p>
-                        <div className="mt-0.5 flex items-center gap-1.5">
-                          <span className="font-mono text-[10px] text-slate-500">{info.identifiant_assujetti_declare}</span>
-                          {isAssujettiLie ? (
-                            <span className="rounded-sm bg-emerald-50 px-1 py-0.2 text-[9px] font-bold text-emerald-700 border border-emerald-200">
-                              Lié en base
-                            </span>
-                          ) : (
-                            <span className="rounded-sm bg-amber-50 px-1 py-0.2 text-[9px] font-bold text-amber-700 border border-amber-200">
-                              À vérifier
-                            </span>
-                          )}
-                        </div>
+                      <td className="px-4 py-3 text-slate-600">
+                        {info.date_reception}
                       </td>
 
-                      <td className="px-4 py-3">
-                        <span className="font-medium text-slate-900">{info.secteur?.nom || info.secteur_code}</span>
+                      <td className="px-4 py-3 font-semibold text-slate-900">
+                        {info.nom_assujetti_declare}
                       </td>
 
-                      <td className="px-4 py-3">
-                        <p className="truncate max-w-[200px] text-slate-800">
-                          {info.forme_juridique || 'Forme juridique non communiquée'}
-                        </p>
-                        <p className="text-[11px] text-slate-400">
-                          {info.adresse_declaree || 'Adresse non communiquée'}
-                        </p>
+                      <td className="px-4 py-3 font-mono text-slate-600 text-xs">
+                        {info.identifiant_assujetti_declare}
+                      </td>
+
+                      <td className="px-4 py-3 text-slate-800">
+                        {info.secteur?.nom || info.secteur_code}
+                      </td>
+
+                      <td className="px-4 py-3 text-slate-700">
+                        {info.forme_juridique || '—'}
                       </td>
 
                       <td className="px-4 py-3 text-center">

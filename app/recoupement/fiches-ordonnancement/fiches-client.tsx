@@ -3,7 +3,10 @@
 import React, { useState, useTransition } from 'react';
 import Link from 'next/link';
 import type { FicheOrdonnancementItem } from '@/lib/recoupement/ordonnancement-service';
-import { fetchFichesOrdonnancementAction } from '@/app/actions/recoupement-ordonnancement';
+import {
+  fetchFichesOrdonnancementAction,
+  transmettreFicheDivisionControleAction,
+} from '@/app/actions/recoupement-ordonnancement';
 import { EmptyState } from '@/components/ui/institutional-state';
 
 interface Props {
@@ -29,13 +32,21 @@ export function FichesClient({
   initialStatutTransmission,
   initialSearch,
   initialBureauId,
-  currentUser: _currentUser, // réservé pour affinage futur des permissions UI
+  currentUser,
 }: Props) {
   const [data, setData] = useState(initialData);
   const [statutTransmission, setStatutTransmission] = useState(initialStatutTransmission);
   const [search, setSearch] = useState(initialSearch);
   const [bureauId, setBureauId] = useState(initialBureauId);
   const [isPending, startTransition] = useTransition();
+  const [transmittingId, setTransmittingId] = useState<string | null>(null);
+  const [isTransmitting, startTransmitting] = useTransition();
+
+  const isBureauAnalyse =
+    (['CHEF_BUREAU', 'ANALYSTE'].includes(currentUser.role) &&
+      (currentUser.bureau_code === 'BUR_ANA_REC' || currentUser.division_code === 'DIV_REC')) ||
+    (currentUser.role === 'CHEF_DIVISION' && currentUser.division_code === 'DIV_REC') ||
+    ['DIRECTEUR_GENERAL', 'DIRECTEUR_CONTROLES'].includes(currentUser.role);
 
   const handleFilter = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -65,6 +76,22 @@ export function FichesClient({
     });
   };
 
+  const handleEnvoyerAuControle = (ficheId: string) => {
+    setTransmittingId(ficheId);
+    startTransmitting(async () => {
+      const res = await transmettreFicheDivisionControleAction(ficheId);
+      if (res.success && res.data) {
+        setData((prev) => ({
+          ...prev,
+          fiches: prev.fiches.map((f) =>
+            f.id === ficheId ? { ...f, statut_transmission: 'TRANSMIS_DIVISION_CONTROLE' as const } : f
+          ),
+        }));
+      }
+      setTransmittingId(null);
+    });
+  };
+
   return (
     <div className="space-y-6 pb-12">
       {/* EN-TÊTE */}
@@ -73,22 +100,22 @@ export function FichesClient({
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold uppercase tracking-wider text-[#0a5db5]">Division Recoupement</span>
             <span className="text-slate-300">·</span>
-            <span className="text-xs font-semibold text-slate-500">Bureau Analyse et Recherche</span>
+            <span className="text-xs font-semibold text-slate-500">Bureau Analyse et Recoupement</span>
           </div>
           <h1 className="mt-1 text-2xl font-extrabold text-slate-900">
             Fiches d&apos;Enregistrement des Données d&apos;Ordonnancement
           </h1>
           <p className="mt-1 text-xs text-slate-500">
-            Registre des fiches conservées par le Bureau et transmises au Chef de Division Contrôle.
+            Registre des fiches d&apos;ordonnancement enregistrées, conservées au Bureau et transmises au Contrôle.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <Link
-            href="/recoupement/informations-recues"
+            href="/assujettis"
             className="inline-flex items-center gap-2 rounded-xl bg-[#0a5db5] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#093b78] transition"
           >
-            <span>📥 Traiter une arrivée</span>
+            <span>◈ Répertoire des assujettis</span>
           </Link>
         </div>
       </div>
@@ -99,22 +126,22 @@ export function FichesClient({
           <div className="min-w-[220px] flex-1">
             <input
               type="text"
-              placeholder="Rechercher par numéro de fiche, note, série..."
+              placeholder="Rechercher par numéro de fiche, note, série, assujetti..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#0a5db5] focus:outline-hidden"
             />
           </div>
 
-          <div className="w-48">
+          <div className="w-56">
             <select
               value={statutTransmission}
               onChange={(e) => setStatutTransmission(e.target.value)}
               className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-[#0a5db5] focus:outline-hidden"
             >
-              <option value="">Tous les statuts de transmission</option>
-              <option value="CONSERVEE_BUREAU">Conservée au Bureau</option>
-              <option value="TRANSMIS_DIVISION_CONTROLE">Transmise au Contrôle</option>
+              <option value="">Toutes les fiches</option>
+              <option value="CONSERVEE_BUREAU">Fiches non encore envoyées (Conservées)</option>
+              <option value="TRANSMIS_DIVISION_CONTROLE">Fiches déjà envoyées (Transmises au Contrôle)</option>
             </select>
           </div>
 
@@ -172,8 +199,8 @@ export function FichesClient({
                   <th className="px-4 py-3.5">Bureau Compétent</th>
                   <th className="px-4 py-3.5">Note de Perception / Acte</th>
                   <th className="px-4 py-3.5 text-right">Montants Enregistrés</th>
-                  <th className="px-4 py-3.5 text-center">Transmission</th>
-                  <th className="px-4 py-3.5 text-right">Action</th>
+                  <th className="px-4 py-3.5 text-center">Statut Transmission</th>
+                  <th className="px-4 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -222,23 +249,36 @@ export function FichesClient({
                       <td className="px-4 py-3 text-center">
                         {isTransmise ? (
                           <span className="inline-flex rounded-full border border-purple-200 bg-purple-50 px-2.5 py-0.5 text-[10px] font-bold text-purple-700">
-                            Transmis au Contrôle
+                            Transmise au Contrôle
                           </span>
                         ) : (
                           <span className="inline-flex rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold text-slate-700">
-                            Conservée Bureau
+                            Conservée au Bureau
                           </span>
                         )}
                       </td>
 
                       <td className="px-4 py-3 text-right">
-                        <Link
-                          href={`/recoupement/fiches-ordonnancement/${fiche.id}`}
-                          className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-[#0a5db5] hover:text-white transition"
-                        >
-                          <span>Consulter</span>
-                          <span>→</span>
-                        </Link>
+                        <div className="flex items-center justify-end gap-2">
+                          {!isTransmise && isBureauAnalyse && (
+                            <button
+                              type="button"
+                              onClick={() => handleEnvoyerAuControle(fiche.id)}
+                              disabled={isTransmitting && transmittingId === fiche.id}
+                              className="inline-flex items-center gap-1 rounded-lg bg-[#0a5db5] px-2.5 py-1.5 text-xs font-bold text-white hover:bg-[#093b78] transition shadow-xs disabled:opacity-50"
+                            >
+                              <span>📤</span>
+                              <span>{isTransmitting && transmittingId === fiche.id ? 'Envoi...' : 'Envoyer au Contrôle'}</span>
+                            </button>
+                          )}
+                          <Link
+                            href={`/recoupement/fiches-ordonnancement/${fiche.id}`}
+                            className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200 transition"
+                          >
+                            <span>Consulter</span>
+                            <span>→</span>
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   );

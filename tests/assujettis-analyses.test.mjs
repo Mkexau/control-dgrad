@@ -805,3 +805,65 @@ describe('Étape 13 — Multi-assujettis : contraintes métier', async () => {
     assert.ok(!invalid.success, 'CRITIQUE rejeté');
   });
 });
+
+// =============================================================================
+// 10. Bureau Analyse : Accès répertoire global et saisie ordonnancement directe
+// =============================================================================
+
+describe('Étape 13 — Bureau Analyse : Répertoire assujettis & Fiches d\'ordonnancement', async () => {
+  const { assertCanReadAssujetti, assertCanManageAssujetti } = await import('../lib/auth/recoupement-access.ts');
+  const { FicheOrdonnancementCreateSchema } = await import('../lib/validations/recoupement-ordonnancement.ts');
+
+  const chefBureauAnalyse = {
+    id: 'user-cba-1',
+    email: 'chef.bureau.analyse@test.local',
+    role: 'CHEF_BUREAU',
+    bureau_id: 'bureau-recoupement-id',
+    bureau_code: 'BUR_ANA_REC',
+    division_code: 'DIV_REC',
+    is_active: true,
+  };
+
+  it('Bureau Analyse (BUR_ANA_REC) peut lire un assujetti de n’importe quel bureau', () => {
+    assert.doesNotThrow(() => assertCanReadAssujetti(chefBureauAnalyse, 'autre-bureau-id'));
+  });
+
+  it('Bureau Analyse (BUR_ANA_REC) peut gérer un assujetti de n’importe quel bureau', () => {
+    assert.doesNotThrow(() => assertCanManageAssujetti(chefBureauAnalyse, 'autre-bureau-id'));
+  });
+
+  it('FicheOrdonnancementCreateSchema : valide la création directe sans information_recue_id', () => {
+    const result = FicheOrdonnancementCreateSchema.safeParse({
+      assujetti_id: TEST_IDS.assujetti,
+      secteur_id: TEST_IDS.secteur,
+      bureau_id: TEST_IDS.bureau,
+      numero_serie: 'SERIE-2026-TEST',
+      delai_traitement_jours: 15,
+      numero_note_perception: 'NP-2026-TEST-001',
+      date_note_perception: '2026-08-15',
+      acte_generateur: 'Taxe d’implantation industrielle',
+      article_budgetaire: 'ART-001',
+      nombre_actes: 2,
+      montant_cdf: 1500000,
+      montant_usd: 0,
+    });
+    assert.ok(result.success, 'Fiche sans information_recue_id doit être acceptée');
+    assert.equal(result.data?.montant_cdf, 1500000);
+  });
+
+  it('FicheOrdonnancementCreateSchema : rejette si les montants CDF et USD sont tous les deux à 0', () => {
+    const result = FicheOrdonnancementCreateSchema.safeParse({
+      assujetti_id: TEST_IDS.assujetti,
+      secteur_id: TEST_IDS.secteur,
+      bureau_id: TEST_IDS.bureau,
+      numero_serie: 'SERIE-2026-TEST',
+      delai_traitement_jours: 15,
+      numero_note_perception: 'NP-2026-TEST-001',
+      date_note_perception: '2026-08-15',
+      acte_generateur: 'Taxe d’implantation industrielle',
+      montant_cdf: 0,
+      montant_usd: 0,
+    });
+    assert.ok(!result.success, 'Doit échouer si montant CDF et USD sont 0');
+  });
+});

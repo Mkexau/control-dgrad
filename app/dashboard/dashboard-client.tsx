@@ -102,42 +102,37 @@ export function DashboardClient({
         {/* 1. EN-TÊTE DU TABLEAU DE BORD - BUREAU ANALYSE ET RECHERCHE */}
         <div className="relative overflow-hidden rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
           <div aria-hidden="true" className="absolute -right-16 -top-20 h-48 w-48 rounded-full bg-blue-50" />
-          <div className="relative flex flex-col gap-4 border-b border-zinc-100 pb-6 lg:flex-row lg:items-center lg:justify-between dark:border-zinc-800">
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-                  Bonjour, {currentUser.prenom || 'Agent'}
-                </h1>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
-                  {currentUser.role}
-                </span>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <div className="relative flex flex-col gap-4 border-b border-zinc-100 pb-6 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">
                   Division Recoupement
                 </span>
+                <span className="text-zinc-400">·</span>
+                <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">
+                  Bureau Analyse et Recoupement
+                </span>
               </div>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Bureau d&apos;Analyse et Recherche · Traitement des données d&apos;ordonnancement du Service d&apos;assiette
+              <h1 className="mt-1 text-2xl font-extrabold text-zinc-900 dark:text-zinc-100">
+                Tableau de Bord — Bureau Analyse & Recoupement
+              </h1>
+              <p className="mt-1 text-xs text-zinc-500">
+                Supervision du répertoire officiel des assujettis, saisie des ordonnancements et registre des fiches.
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               <Link
-                href="/recoupement/informations-recues"
-                className="px-3.5 py-2 text-xs font-bold text-white bg-[#0a5db5] hover:bg-[#093b78] rounded-xl transition-colors shadow-xs flex items-center gap-1.5"
+                href="/assujettis"
+                className="px-3.5 py-2 text-xs font-bold text-white bg-[#0a5db5] hover:bg-[#093b78] rounded-xl transition-colors shadow-xs"
               >
-                <span>📥 Informations reçues ({recoupementMetrics.informationsATraiter})</span>
+                ◈ Répertoire Assujettis
               </Link>
               <Link
                 href="/recoupement/fiches-ordonnancement"
                 className="px-3.5 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-xl transition-colors"
               >
-                📋 Fiches d&apos;ordonnancement
-              </Link>
-              <Link
-                href="/recoupement/transmissions"
-                className="px-3.5 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-xl transition-colors"
-              >
-                📤 Transmissions au Contrôle
+                📋 Fiches d&apos;ordonnancement ({recoupementMetrics.fichesEnregistrees})
               </Link>
             </div>
           </div>
@@ -150,51 +145,51 @@ export function DashboardClient({
               </span>
             </div>
             <span className="text-zinc-400 text-[11px]">
-              Source externe : Service d&apos;assiette (Simulation de recette)
+              Source externe : Service d&apos;assiette (Données transmises)
             </span>
           </div>
         </div>
 
-        {/* 2. CARTES D'INDICATEURS DU BUREAU ANALYSE & RECHERCHE */}
+        {/* 2. CARTES D'INDICATEURS DU BUREAU ANALYSE */}
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <Link
-            href="/recoupement/informations-recues?statut=A_TRAITER"
+            href="/assujettis"
             className="group block rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition hover:border-blue-300 hover:shadow-sm"
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-amber-700">À Traiter</span>
-              <span className="grid h-8 w-8 place-items-center rounded-lg bg-amber-50 text-amber-600 text-sm">📥</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-blue-700">Répertoire Assujettis</span>
+              <span className="grid h-8 w-8 place-items-center rounded-lg bg-blue-50 text-[#0a5db5] text-sm">◈</span>
+            </div>
+            <p className="mt-3 text-3xl font-extrabold text-slate-900">{recoupementMetrics.totalInformationsRecues}</p>
+            <p className="mt-1 text-xs text-slate-500">Dossiers d&apos;assujettis suivis</p>
+          </Link>
+
+          <Link
+            href="/assujettis"
+            className="group block rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition hover:border-blue-300 hover:shadow-sm"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-amber-700">En attente de saisie</span>
+              <span className="grid h-8 w-8 place-items-center rounded-lg bg-amber-50 text-amber-600 text-sm">⏳</span>
             </div>
             <p className="mt-3 text-3xl font-extrabold text-slate-900">{recoupementMetrics.informationsATraiter}</p>
-            <p className="mt-1 text-xs text-slate-500">Bordereaux en attente de vérification</p>
+            <p className="mt-1 text-xs text-slate-500">Assujettis sans fiche d&apos;ordonnancement</p>
           </Link>
 
           <Link
-            href="/recoupement/informations-recues?statut=EN_COURS"
+            href="/recoupement/fiches-ordonnancement?statut_transmission=CONSERVEE_BUREAU"
             className="group block rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition hover:border-blue-300 hover:shadow-sm"
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-blue-700">En Cours</span>
-              <span className="grid h-8 w-8 place-items-center rounded-lg bg-blue-50 text-blue-600 text-sm">⏳</span>
-            </div>
-            <p className="mt-3 text-3xl font-extrabold text-slate-900">{recoupementMetrics.informationsEnCours}</p>
-            <p className="mt-1 text-xs text-slate-500">Informations en cours d&apos;analyse</p>
-          </Link>
-
-          <Link
-            href="/recoupement/fiches-ordonnancement"
-            className="group block rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition hover:border-blue-300 hover:shadow-sm"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-emerald-700">Fiches Enregistrées</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-emerald-700">Conservées au Bureau</span>
               <span className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-50 text-emerald-600 text-sm">📋</span>
             </div>
-            <p className="mt-3 text-3xl font-extrabold text-slate-900">{recoupementMetrics.fichesEnregistrees}</p>
-            <p className="mt-1 text-xs text-slate-500">{recoupementMetrics.fichesConservees} conservée(s) au bureau</p>
+            <p className="mt-3 text-3xl font-extrabold text-slate-900">{recoupementMetrics.fichesConservees}</p>
+            <p className="mt-1 text-xs text-slate-500">Fiches prêtes pour envoi au contrôle</p>
           </Link>
 
           <Link
-            href="/recoupement/transmissions"
+            href="/recoupement/fiches-ordonnancement?statut_transmission=TRANSMIS_DIVISION_CONTROLE"
             className="group block rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition hover:border-blue-300 hover:shadow-sm"
           >
             <div className="flex items-center justify-between">
@@ -202,20 +197,20 @@ export function DashboardClient({
               <span className="grid h-8 w-8 place-items-center rounded-lg bg-purple-50 text-purple-600 text-sm">📤</span>
             </div>
             <p className="mt-3 text-3xl font-extrabold text-slate-900">{recoupementMetrics.fichesTransmises}</p>
-            <p className="mt-1 text-xs text-slate-500">Transmises au Chef de Division Contrôle</p>
+            <p className="mt-1 text-xs text-slate-500">Fiches transmises aux Bureaux de contrôle</p>
           </Link>
         </div>
 
-        {/* 3. ACTIVITÉ RÉCENTE & ACTIONS RAPIDES */}
+        {/* 3. ACTIVITÉ RÉCENTE & PROCESSUS */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs lg:col-span-2">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div>
                 <h2 className="text-base font-bold text-slate-900">Activité Récente du Bureau</h2>
-                <p className="text-xs text-slate-500">Derniers bordereaux reçus et fiches établies</p>
+                <p className="text-xs text-slate-500">Derniers dossiers et fiches d&apos;ordonnancement</p>
               </div>
-              <Link href="/recoupement/informations-recues" className="text-xs font-semibold text-[#0a5db5] hover:underline">
-                Voir tout →
+              <Link href="/recoupement/fiches-ordonnancement" className="text-xs font-semibold text-[#0a5db5] hover:underline">
+                Voir le registre →
               </Link>
             </div>
 
@@ -253,37 +248,30 @@ export function DashboardClient({
 
           <div className="space-y-4">
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
-              <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Processus Recoupement</h2>
+              <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Processus Métier du Bureau</h2>
               <p className="mt-2 text-xs leading-5 text-slate-600">
-                Le Bureau d&apos;Analyse et Recherche exploite les flux du Service d&apos;assiette pour établir les Fiches d&apos;ordonnancement destinées au Chef de Division Contrôle.
+                Le Bureau Analyse & Recoupement consulte les assujettis du répertoire, saisit les données d&apos;ordonnancement et transmet les fiches aux Bureaux de contrôle.
               </p>
               <div className="mt-5 space-y-2.5">
-                <Link
-                  href="/recoupement/informations-recues"
-                  className="flex items-center justify-between rounded-xl bg-slate-50 p-3 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-800 transition"
-                >
-                  <span>1. Traiter une arrivée</span>
-                  <span>→</span>
-                </Link>
                 <Link
                   href="/assujettis"
                   className="flex items-center justify-between rounded-xl bg-slate-50 p-3 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-800 transition"
                 >
-                  <span>2. Consulter le répertoire assujettis</span>
+                  <span>1. Répertoire des assujettis</span>
                   <span>→</span>
                 </Link>
                 <Link
                   href="/recoupement/fiches-ordonnancement"
                   className="flex items-center justify-between rounded-xl bg-slate-50 p-3 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-800 transition"
                 >
-                  <span>3. Fiches d&apos;ordonnancement</span>
+                  <span>2. Registre des fiches d&apos;ordonnancement</span>
                   <span>→</span>
                 </Link>
                 <Link
-                  href="/analyses"
+                  href="/recoupement/fiches-ordonnancement?statut_transmission=CONSERVEE_BUREAU"
                   className="flex items-center justify-between rounded-xl bg-slate-50 p-3 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-800 transition"
                 >
-                  <span>4. Dossiers d&apos;analyse</span>
+                  <span>3. Envoyer les fiches au Contrôle</span>
                   <span>→</span>
                 </Link>
               </div>

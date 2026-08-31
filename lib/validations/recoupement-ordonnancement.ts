@@ -70,7 +70,7 @@ export type InformationRecueCreerAssujettiInput = z.infer<typeof InformationRecu
  * Schéma de création d'une Fiche d'enregistrement des données d'ordonnancement
  */
 export const FicheOrdonnancementCreateSchema = z.object({
-  information_recue_id: z.string().uuid('Identifiant information reçue invalide.'),
+  information_recue_id: z.string().uuid('Identifiant information reçue invalide.').optional().nullable(),
   assujetti_id: z.string().uuid('Identifiant assujetti invalide.'),
   secteur_id: z.string().uuid('Identifiant secteur invalide.'),
   bureau_id: z.string().uuid('Identifiant bureau invalide.'),

@@ -105,7 +105,7 @@ export function AnalysesClient({ currentUser, availableBureaux, initialData }: P
       {/* En-tête */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Dossiers d'analyse</h1>
+          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Dossiers d&apos;analyse</h1>
           <p className="text-sm text-zinc-500 mt-1">
             {total} dossier{total !== 1 ? 's' : ''} dans votre périmètre
           </p>
@@ -211,7 +211,7 @@ export function AnalysesClient({ currentUser, availableBureaux, initialData }: P
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
           <div className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800">
             <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
-              <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">Nouveau dossier d'analyse</h2>
+              <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">Nouveau dossier d&apos;analyse</h2>
               <button type="button" onClick={() => setShowModal(false)} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200">✕</button>
             </div>
             <form onSubmit={handleCreate} className="px-6 py-5 space-y-4">

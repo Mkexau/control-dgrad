@@ -4,7 +4,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useRef, useTransition } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useTransition } from 'react';
 import {
   fetchNotificationsAction,
   fetchUnreadCountAction,
@@ -22,12 +22,12 @@ export function NotificationBell() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Charger le compteur initial
-  const loadCount = async () => {
+  const loadCount = useCallback(async () => {
     const res = await fetchUnreadCountAction();
     if (res.success && typeof res.data === 'number') {
       setUnreadCount(res.data);
     }
-  };
+  }, []);
 
   // Charger les notifications lors de l'ouverture
   const loadNotifications = async () => {
@@ -40,10 +40,10 @@ export function NotificationBell() {
   };
 
   useEffect(() => {
-    loadCount();
-    const interval = setInterval(loadCount, 30000); // Polling toutes les 30s
+    void (async () => { await loadCount(); })();
+    const interval = setInterval(() => { void loadCount(); }, 30000); // Polling toutes les 30s
     return () => clearInterval(interval);
-  }, []);
+  }, [loadCount]);
 
   const toggleDropdown = () => {
     if (!isOpen) {

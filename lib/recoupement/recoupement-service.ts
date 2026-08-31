@@ -89,6 +89,7 @@ export async function getAssujettis(
     `, { count: 'exact' });
 
   // Périmètre organisationnel selon le rôle
+  const isRecoupement = user.bureau_code === 'BUR_ANA_REC' || user.division_code === 'DIV_REC';
   const isGlobal = [
     'DIRECTEUR_GENERAL',
     'DIRECTEUR_CONTROLES',
@@ -96,7 +97,7 @@ export async function getAssujettis(
     'CONSULTATION',
     'CHEF_EQUIPE',
     'CONTROLEUR',
-  ].includes(user.role);
+  ].includes(user.role) || isRecoupement;
 
   if (!isGlobal && ['CHEF_BUREAU', 'ANALYSTE'].includes(user.role)) {
     if (user.bureau_id) {

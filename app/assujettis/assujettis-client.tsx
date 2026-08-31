@@ -21,6 +21,8 @@ interface CurrentUser {
   id: string;
   role: string;
   bureau_id: string | null;
+  bureau_code?: string | null;
+  division_code?: string | null;
   nom: string;
   prenom: string;
 }
@@ -399,7 +401,7 @@ export function AssujettisClient({
 
               <div>
                 <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                  Secteur d'activité
+                  Secteur d&apos;activité
                 </label>
                 <select
                   value={formData.secteur_principal_id}
