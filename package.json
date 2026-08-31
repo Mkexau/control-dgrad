@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "node --test"
+    "test": "node --env-file=.env.local --test"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.5",

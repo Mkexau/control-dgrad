@@ -8,9 +8,16 @@ import { LogoutButton } from '@/components/auth/logout-button';
 import { RoleBadge } from '@/components/admin/status-badge';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 
-type ShellUser = { email: string; role: string; nom?: string | null; prenom?: string | null };
+type ShellUser = {
+  email: string;
+  role: string;
+  nom?: string | null;
+  prenom?: string | null;
+  bureau_code?: string | null;
+  division_code?: string | null;
+};
 
-const navigation = [
+const navigationGeneral = [
   { href: '/dashboard', label: 'Tableau de bord', icon: '▦' },
   { href: '/missions', label: 'Missions', icon: '◇' },
   { href: '/equipes', label: 'Équipes', icon: '◌' },
@@ -18,9 +25,24 @@ const navigation = [
   { href: '/analyses', label: 'Analyses', icon: '◫' },
 ];
 
+const navigationRecoupement = [
+  { href: '/dashboard', label: 'Tableau de bord', icon: '▦' },
+  { href: '/recoupement/informations-recues', label: 'Informations reçues', icon: '📥' },
+  { href: '/assujettis', label: 'Assujettis', icon: '◈' },
+  { href: '/recoupement/fiches-ordonnancement', label: 'Fiches d’ordonnancement', icon: '📋' },
+  { href: '/analyses', label: 'Analyses & Recoupement', icon: '◫' },
+  { href: '/recoupement/transmissions', label: 'Transmissions', icon: '📤' },
+];
+
 const pageTitles: Record<string, string> = {
-  dashboard: 'Tableau de bord', missions: 'Missions de contrôle', equipes: 'Équipes de terrain',
-  controles: 'Contrôles', assujettis: 'Assujettis', analyses: 'Analyses et recoupements', admin: 'Administration',
+  dashboard: 'Tableau de bord',
+  missions: 'Missions de contrôle',
+  equipes: 'Équipes de terrain',
+  controles: 'Contrôles',
+  assujettis: 'Assujettis',
+  analyses: 'Analyses et recoupements',
+  recoupement: 'Recoupement & Ordonnancement',
+  admin: 'Administration',
 };
 
 export function InstitutionalShell({ user, children }: { user: ShellUser; children: React.ReactNode }) {
@@ -30,9 +52,16 @@ export function InstitutionalShell({ user, children }: { user: ShellUser; childr
   const title = pageTitles[section] ?? 'DGRAD Contrôle';
   const initials = `${user.prenom?.[0] ?? ''}${user.nom?.[0] ?? user.email[0] ?? ''}`.toUpperCase();
   const isAdmin = user.role === 'ADMIN';
-  const items = isAdmin
-    ? [navigation[0], { href: '/admin', label: 'Administration', icon: '⚙' }]
-    : navigation;
+  const isRecoupement =
+    user.bureau_code === 'BUR_ANA_REC' ||
+    (user.role === 'CHEF_DIVISION' && user.division_code === 'DIV_REC');
+
+  let items = navigationGeneral;
+  if (isAdmin) {
+    items = [{ href: '/dashboard', label: 'Tableau de bord', icon: '▦' }, { href: '/admin', label: 'Administration', icon: '⚙' }];
+  } else if (isRecoupement) {
+    items = navigationRecoupement;
+  }
 
   return (
     <div className="institutional-shell min-h-screen bg-slate-50 text-slate-900">

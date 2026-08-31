@@ -47,6 +47,8 @@ export const CurrentUserSchema = z.object({
   role: RoleEnum,
   bureau_id: z.string().uuid().nullable().optional(),
   division_id: z.string().uuid().nullable().optional(),
+  bureau_code: z.string().nullable().optional(),
+  division_code: z.string().nullable().optional(),
   is_active: z.boolean(),
   nom: z.string().optional().nullable(),
   prenom: z.string().optional().nullable(),

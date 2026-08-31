@@ -40,17 +40,27 @@ export default async function DashboardPage() {
     secteursQuery,
   ]);
 
+  const isRecoupement =
+    currentUser.bureau_code === 'BUR_ANA_REC' ||
+    (currentUser.role === 'CHEF_DIVISION' && currentUser.division_code === 'DIV_REC');
+
   // 2. Récupération initiale des métriques
-  const initialMetrics = await getDashboardMetrics(currentUser, {});
+  const [initialMetrics, recoupementMetrics] = await Promise.all([
+    getDashboardMetrics(currentUser, {}),
+    isRecoupement ? import('@/lib/recoupement/ordonnancement-service').then(m => m.getRecoupementDashboardMetrics(currentUser)) : Promise.resolve(null),
+  ]);
 
   return (
     <InstitutionalShell user={currentUser}>
       <DashboardClient
         initialMetrics={initialMetrics}
+        recoupementMetrics={recoupementMetrics}
         currentUser={{
           id: currentUser.id,
           role: currentUser.role,
           bureau_id: currentUser.bureau_id,
+          bureau_code: currentUser.bureau_code,
+          division_code: currentUser.division_code,
           nom: currentUser.nom || '',
           prenom: currentUser.prenom || '',
         }}
