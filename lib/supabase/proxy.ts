@@ -45,7 +45,31 @@ export async function updateSession(request: NextRequest) {
   );
 
   // Rafraîchit le jeton d'authentification si nécessaire
-  await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Le Service d'assiette n'a accès qu'à son tableau de bord et à son
+  // répertoire. Cette protection de route complète les contrôles serveur/RLS.
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle();
+    const allowedAssiettePath =
+      request.nextUrl.pathname === '/dashboard' ||
+      request.nextUrl.pathname === '/assiette/assujettis' ||
+      request.nextUrl.pathname.startsWith('/assiette/assujettis/') ||
+      request.nextUrl.pathname.startsWith('/assujettis/');
+
+    if (profile?.role === 'SERVICE_ASSIETTE' && !allowedAssiettePath) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/dashboard';
+      url.search = '';
+      const redirectResponse = NextResponse.redirect(url);
+      response.cookies.getAll().forEach((cookie) => redirectResponse.cookies.set(cookie));
+      return redirectResponse;
+    }
+  }
 
   return response;
 }

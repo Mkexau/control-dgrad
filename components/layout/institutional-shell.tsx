@@ -32,6 +32,11 @@ const navigationRecoupement = [
   { href: '/recoupement/fiches-ordonnancement', label: 'Fiches d’ordonnancement', icon: '📋' },
 ];
 
+const navigationAssiette = [
+  { href: '/dashboard', label: 'Tableau de bord', icon: '◧' },
+  { href: '/assiette/assujettis', label: 'Assujettis', icon: '◈' },
+];
+
 const pageTitles: Record<string, string> = {
   dashboard: 'Tableau de bord',
   missions: 'Missions de contrôle',
@@ -53,12 +58,15 @@ export function InstitutionalShell({ user, children }: { user: ShellUser; childr
   const isRecoupement =
     user.bureau_code === 'BUR_ANA_REC' ||
     (user.role === 'CHEF_DIVISION' && user.division_code === 'DIV_REC');
+  const isServiceAssiette = user.role === 'SERVICE_ASSIETTE';
 
   let items = navigationGeneral;
   if (isAdmin) {
     items = [{ href: '/dashboard', label: 'Tableau de bord', icon: '▦' }, { href: '/admin', label: 'Administration', icon: '⚙' }];
   } else if (isRecoupement) {
     items = navigationRecoupement;
+  } else if (isServiceAssiette) {
+    items = navigationAssiette;
   }
 
   return (

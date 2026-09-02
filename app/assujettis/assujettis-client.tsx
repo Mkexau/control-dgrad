@@ -64,6 +64,7 @@ export function AssujettisClient({
   const [formPending, startFormTransition] = useTransition();
 
   const canWrite = ROLES_ECRITURE.includes(currentUser.role);
+  const hasNationalDirectoryAccess = currentUser.bureau_code === 'BUR_ANA_REC';
   const limit = 20;
 
   const loadData = (p: number, s: string, secteur: string, type: string) => {
@@ -167,7 +168,8 @@ export function AssujettisClient({
         <div>
           <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Assujettis</h1>
           <p className="text-sm text-zinc-500 mt-1">
-            {total} assujetti{total !== 1 ? 's' : ''} dans votre périmètre
+            {total} assujetti{total !== 1 ? 's' : ''}{' '}
+            {hasNationalDirectoryAccess ? 'dans le répertoire national' : 'dans votre périmètre'}
           </p>
         </div>
         {canWrite && (

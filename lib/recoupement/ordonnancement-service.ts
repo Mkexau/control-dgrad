@@ -115,15 +115,14 @@ export interface FicheOrdonnancementItem {
 }
 
 export interface RecoupementDashboardMetrics {
-  totalInformationsRecues: number;
-  informationsATraiter: number;
-  informationsEnCours: number;
+  totalAssujettis: number;
+  assujettisSansFiche: number;
   fichesEnregistrees: number;
   fichesTransmises: number;
   fichesConservees: number;
   activitesRecentes: {
     id: string;
-    type: 'INFORMATION_RECUE' | 'FICHE_CREEE' | 'FICHE_TRANSMISE';
+    type: 'ASSUJETTI_ENREGISTRE' | 'FICHE_CREEE' | 'FICHE_TRANSMISE';
     titre: string;
     description: string;
     date: string;
@@ -900,20 +899,16 @@ export async function getRecoupementDashboardMetrics(
   const supabase = createAdminClient();
 
   const [
-    { count: countTotalRecues },
-    { count: countATraiter },
-    { count: countEnCours },
+    { count: countAssujettis },
     { count: countFichesTotales },
     { count: countFichesTransmises },
     { data: lastInformations },
     { data: lastFiches },
   ] = await Promise.all([
-    supabase.from('informations_recues').select('*', { count: 'exact', head: true }),
-    supabase.from('informations_recues').select('*', { count: 'exact', head: true }).eq('statut', 'A_TRAITER'),
-    supabase.from('informations_recues').select('*', { count: 'exact', head: true }).eq('statut', 'EN_COURS'),
+    supabase.from('assujettis').select('*', { count: 'exact', head: true }),
     supabase.from('fiches_ordonnancement').select('*', { count: 'exact', head: true }),
     supabase.from('fiches_ordonnancement').select('*', { count: 'exact', head: true }).eq('statut_transmission', 'TRANSMIS_DIVISION_CONTROLE'),
-    supabase.from('informations_recues').select('id, numero_reference, nom_assujetti_declare, date_reception, statut').order('created_at', { ascending: false }).limit(5),
+    supabase.from('assujettis').select('id, numero_reference:identifiant, nom_assujetti_declare:nom_raison_sociale, date_reception:created_at').order('created_at', { ascending: false }).limit(5),
     supabase.from('fiches_ordonnancement').select('id, numero_fiche, date_note_perception, statut_transmission, created_at').order('created_at', { ascending: false }).limit(5),
   ]);
 
@@ -922,11 +917,10 @@ export async function getRecoupementDashboardMetrics(
   for (const info of lastInformations || []) {
     activitesRecentes.push({
       id: `info-${info.id}`,
-      type: 'INFORMATION_RECUE',
+      type: 'ASSUJETTI_ENREGISTRE',
       titre: `Arrivée ${info.numero_reference}`,
       description: `Assujetti déclaré : ${info.nom_assujetti_declare}`,
       date: info.date_reception,
-      statut: info.statut,
     });
   }
 
@@ -944,13 +938,20 @@ export async function getRecoupementDashboardMetrics(
   // Tri décroissant par date
   activitesRecentes.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
+  const { data: fichesAssujettis, error: fichesAssujettisError } = await supabase
+    .from('fiches_ordonnancement')
+    .select('assujetti_id');
+  if (fichesAssujettisError) {
+    throw new Error(`Impossible de calculer les assujettis sans fiche : ${fichesAssujettisError.message}`);
+  }
+
   const totalFiches = countFichesTotales || 0;
   const transmises = countFichesTransmises || 0;
+  const assujettisAvecFiche = new Set((fichesAssujettis ?? []).map((fiche) => fiche.assujetti_id)).size;
 
   return {
-    totalInformationsRecues: countTotalRecues || 0,
-    informationsATraiter: countATraiter || 0,
-    informationsEnCours: countEnCours || 0,
+    totalAssujettis: countAssujettis || 0,
+    assujettisSansFiche: Math.max(0, (countAssujettis || 0) - assujettisAvecFiche),
     fichesEnregistrees: totalFiches,
     fichesTransmises: transmises,
     fichesConservees: Math.max(0, totalFiches - transmises),

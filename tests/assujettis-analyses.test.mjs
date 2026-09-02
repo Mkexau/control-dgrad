@@ -828,6 +828,17 @@ describe('Étape 13 — Bureau Analyse : Répertoire assujettis & Fiches d\'ordo
     assert.doesNotThrow(() => assertCanReadAssujetti(chefBureauAnalyse, 'autre-bureau-id'));
   });
 
+  it('un Chef de Bureau de contrôle reste bloqué hors de son propre bureau', () => {
+    const chefBureauControle = {
+      ...chefBureauAnalyse,
+      bureau_id: 'bureau-controle-id',
+      bureau_code: 'BUR_CTRL_SOL',
+      division_code: 'DIV_CTRL',
+    };
+
+    assert.throws(() => assertCanReadAssujetti(chefBureauControle, 'autre-bureau-id'));
+  });
+
   it('Bureau Analyse (BUR_ANA_REC) peut gérer un assujetti de n’importe quel bureau', () => {
     assert.doesNotThrow(() => assertCanManageAssujetti(chefBureauAnalyse, 'autre-bureau-id'));
   });

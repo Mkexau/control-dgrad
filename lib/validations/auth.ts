@@ -6,6 +6,7 @@ import { z } from 'zod';
 
 export const RoleEnum = z.enum([
   'ADMIN',
+  'SERVICE_ASSIETTE',
   'ANALYSTE',
   'CHEF_BUREAU',
   'CHEF_DIVISION',

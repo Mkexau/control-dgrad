@@ -139,6 +139,8 @@ export function AssujettiDetailClient({
     ['DIRECTEUR_GENERAL', 'DIRECTEUR_CONTROLES'].includes(currentUser.role);
 
   const canWrite = ROLES_ECRITURE.includes(currentUser.role) || isBureauAnalyse;
+  const canCreateFicheOrdonnancement =
+    ['CHEF_BUREAU', 'ANALYSTE'].includes(currentUser.role) && currentUser.bureau_code === 'BUR_ANA_REC';
 
   // Changement de secteur -> maj automatique du bureau
   const handleSecteurChange = (newSecteurId: string) => {
@@ -357,7 +359,7 @@ export function AssujettiDetailClient({
       </div>
 
       {/* 3. SECTION B : SAISIE DES DONNÉES D'ORDONNANCEMENT */}
-      {canWrite && (
+      {canCreateFicheOrdonnancement && (
         <div className="rounded-2xl border border-blue-200 bg-white p-6 shadow-xs space-y-5">
           <div className="border-b border-slate-100 pb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>

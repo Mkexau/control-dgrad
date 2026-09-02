@@ -28,6 +28,7 @@ interface UserFormProps {
 
 const ROLES = [
   { value: 'ADMIN', label: 'ADMIN (Administrateur technique)' },
+  { value: 'SERVICE_ASSIETTE', label: 'SERVICE_ASSIETTE (Saisie des assujettis)' },
   { value: 'DIRECTEUR_GENERAL', label: 'DIRECTEUR_GENERAL (Directeur Général)' },
   { value: 'DIRECTEUR_CONTROLES', label: 'DIRECTEUR_CONTROLES (Directeur des contrôles et recoupements)' },
   { value: 'CHEF_DIVISION', label: 'CHEF_DIVISION (Chef de Division Contrôle / Recoupement)' },

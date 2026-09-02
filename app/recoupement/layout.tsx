@@ -13,7 +13,7 @@ export default async function RecoupementLayout({
   const currentUser = await getCurrentUser();
 
   if (!currentUser) {
-    redirect('/connexion?redirect=/recoupement/informations-recues');
+    redirect('/connexion?redirect=/assujettis');
   }
 
   return <InstitutionalShell user={currentUser}>{children}</InstitutionalShell>;

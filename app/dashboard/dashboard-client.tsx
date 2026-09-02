@@ -157,11 +157,11 @@ export function DashboardClient({
             className="group block rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition hover:border-blue-300 hover:shadow-sm"
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-blue-700">Répertoire Assujettis</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-blue-700">Informations reçues</span>
               <span className="grid h-8 w-8 place-items-center rounded-lg bg-blue-50 text-[#0a5db5] text-sm">◈</span>
             </div>
-            <p className="mt-3 text-3xl font-extrabold text-slate-900">{recoupementMetrics.totalInformationsRecues}</p>
-            <p className="mt-1 text-xs text-slate-500">Dossiers d&apos;assujettis suivis</p>
+            <p className="mt-3 text-3xl font-extrabold text-slate-900">{recoupementMetrics.totalAssujettis}</p>
+            <p className="mt-1 text-xs text-slate-500">Dossiers reçus du Service d&apos;assiette</p>
           </Link>
 
           <Link
@@ -172,7 +172,7 @@ export function DashboardClient({
               <span className="text-xs font-bold uppercase tracking-wider text-amber-700">En attente de saisie</span>
               <span className="grid h-8 w-8 place-items-center rounded-lg bg-amber-50 text-amber-600 text-sm">⏳</span>
             </div>
-            <p className="mt-3 text-3xl font-extrabold text-slate-900">{recoupementMetrics.informationsATraiter}</p>
+            <p className="mt-3 text-3xl font-extrabold text-slate-900">{recoupementMetrics.assujettisSansFiche}</p>
             <p className="mt-1 text-xs text-slate-500">Assujettis sans fiche d&apos;ordonnancement</p>
           </Link>
 
@@ -224,13 +224,13 @@ export function DashboardClient({
                   <div key={act.id} className="flex items-center justify-between py-3">
                     <div className="flex items-center gap-3">
                       <span className={`grid h-8 w-8 place-items-center rounded-lg text-xs font-bold ${
-                        act.type === 'INFORMATION_RECUE'
+                        act.type === 'ASSUJETTI_ENREGISTRE'
                           ? 'bg-amber-50 text-amber-700'
                           : act.type === 'FICHE_TRANSMISE'
                           ? 'bg-purple-50 text-purple-700'
                           : 'bg-emerald-50 text-emerald-700'
                       }`}>
-                        {act.type === 'INFORMATION_RECUE' ? '📥' : act.type === 'FICHE_TRANSMISE' ? '📤' : '📋'}
+                        {act.type === 'ASSUJETTI_ENREGISTRE' ? '🗂️' : act.type === 'FICHE_TRANSMISE' ? '📤' : '📋'}
                       </span>
                       <div>
                         <p className="text-sm font-semibold text-slate-900">{act.titre}</p>

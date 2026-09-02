@@ -5,6 +5,8 @@ import { createAdminClient } from '@/lib/supabase/server';
 import { getDashboardMetrics } from '@/lib/stats/stats-service';
 import { InstitutionalShell } from '@/components/layout/institutional-shell';
 import { DashboardClient } from './dashboard-client';
+import { ServiceAssietteDashboardClient } from './service-assiette-dashboard';
+import { getServiceAssietteDashboard } from '@/lib/assiette/assiette-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +15,15 @@ export default async function DashboardPage() {
 
   if (!currentUser) {
     redirect('/connexion?redirect=/dashboard');
+  }
+
+  if (currentUser.role === 'SERVICE_ASSIETTE') {
+    const dashboard = await getServiceAssietteDashboard(currentUser);
+    return (
+      <InstitutionalShell user={currentUser}>
+        <ServiceAssietteDashboardClient prenom={currentUser.prenom} dashboard={dashboard} />
+      </InstitutionalShell>
+    );
   }
 
   const supabase = createAdminClient();
