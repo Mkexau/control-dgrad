@@ -3,7 +3,7 @@ import { redirect, notFound } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth/get-current-user';
 import { createAdminClient } from '@/lib/supabase/server';
 import { fetchAssujettiByIdAction } from '@/app/actions/assujettis';
-import { fetchNotesPerceptionAction, fetchOrdonnancementsAction, getRecoupementSynthesisAction } from '@/app/actions/recoupement';
+import { getRecoupementSynthesisAction } from '@/app/actions/recoupement';
 import { AssujettiDetailClient } from './assujetti-detail-client';
 
 export const dynamic = 'force-dynamic';
@@ -22,10 +22,8 @@ export default async function AssujettiDetailPage({
 
   const supabase = createAdminClient();
 
-  const [assujettiRes, notesRes, ordRes, syntheseRes, fichesRes, bureauxRes, secteursRes] = await Promise.all([
+  const [assujettiRes, syntheseRes, fichesRes, bureauxRes, secteursRes] = await Promise.all([
     fetchAssujettiByIdAction(id),
-    fetchNotesPerceptionAction(id),
-    fetchOrdonnancementsAction(id),
     getRecoupementSynthesisAction(id),
     supabase
       .from('fiches_ordonnancement')
@@ -50,8 +48,6 @@ export default async function AssujettiDetailPage({
   return (
     <AssujettiDetailClient
       assujetti={assujettiRes.data}
-      notes={notesRes.data || []}
-      ordonnancements={ordRes.data || []}
       fiches={(fichesRes.data || []) as unknown as React.ComponentProps<typeof AssujettiDetailClient>['fiches']}
       availableBureaux={bureauxRes.data || []}
       availableSecteurs={secteursRes.data || []}

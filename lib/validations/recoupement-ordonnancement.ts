@@ -3,6 +3,7 @@
 // =============================================================================
 
 import { z } from 'zod';
+import { DELAI_PAIEMENT_STANDARD } from './controle-ordonnancement.ts';
 
 export const StatutInformationRecueEnum = z.enum([
   'A_TRAITER',
@@ -82,7 +83,8 @@ export const FicheOrdonnancementCreateSchema = z.object({
   delai_traitement_jours: z
     .number()
     .int('Le délai de traitement doit être un entier.')
-    .min(1, 'Le délai de traitement doit être d’au moins 1 jour.'),
+    .min(1, 'Le délai de traitement doit être d’au moins 1 jour.')
+    .default(DELAI_PAIEMENT_STANDARD),
   numero_note_perception: z
     .string()
     .trim()
@@ -130,12 +132,20 @@ export const FicheOrdonnancementTransmissionSchema = z.object({
 });
 export type FicheOrdonnancementTransmissionInput = z.infer<typeof FicheOrdonnancementTransmissionSchema>;
 
+export const FichesOrdonnancementTransmissionMasseSchema = z.object({
+  fiche_ids: z.array(z.string().uuid('Identifiant fiche invalide.')).min(1, 'Sélectionnez au moins une fiche.').max(100),
+}).refine((data) => new Set(data.fiche_ids).size === data.fiche_ids.length, {
+  message: 'Une fiche ne peut être sélectionnée qu’une fois.', path: ['fiche_ids'],
+});
+export type FichesOrdonnancementTransmissionMasseInput = z.infer<typeof FichesOrdonnancementTransmissionMasseSchema>;
+
 /**
  * Schéma de filtrage des fiches d'ordonnancement
  */
 export const FicheOrdonnancementFilterSchema = z.object({
   page: z.number().int().min(1).default(1),
   limit: z.number().int().min(1).max(100).default(20),
+  assujetti_id: z.string().uuid().optional(),
   statut_transmission: StatutTransmissionFicheEnum.optional(),
   bureau_id: z.string().uuid().optional(),
   secteur_id: z.string().uuid().optional(),

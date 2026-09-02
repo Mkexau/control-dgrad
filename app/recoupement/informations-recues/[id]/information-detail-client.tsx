@@ -436,7 +436,7 @@ export function InformationDetailClient({
                   </div>
 
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1">Date de Note de perception :</label>
+                    <label className="block font-bold text-slate-700 mb-1">Date d&apos;émission de la note de perception :</label>
                     <input
                       type="date"
                       value={formData.date_note_perception}

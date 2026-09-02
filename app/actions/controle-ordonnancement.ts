@@ -7,6 +7,8 @@ import {
   getOrdonnancementAControlerById,
   enregistrerVerificationOrdonnancement,
   getSyntheseSectorielleControle,
+  getConsolidationBureauxControle,
+  getConsolidationDivisionControle,
   type FicheAControlerItem,
   type VerificationItem,
   type SyntheseSecteurItem,
@@ -16,6 +18,8 @@ import {
   VerificationFilterSchema,
   type VerificationOrdonnancementInput,
   type VerificationFilter,
+  type SyntheseBureauConsolidation,
+  type SyntheseDivisionConsolidation,
 } from '@/lib/validations/controle-ordonnancement';
 
 export interface ActionResponse<T> {
@@ -115,6 +119,50 @@ export async function fetchSyntheseSectorielleAction(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erreur lors de la synthèse sectorielle.',
+    };
+  }
+}
+
+/**
+ * Action pour obtenir la consolidation multi-secteurs par bureau de contrôle (Niveau 3).
+ */
+export async function fetchConsolidationBureauxAction(
+  bureauId?: string
+): Promise<ActionResponse<SyntheseBureauConsolidation[]>> {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, error: 'Authentification requise.' };
+    }
+
+    const result = await getConsolidationBureauxControle(user, bureauId);
+    return { success: true, data: result };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur lors de la consolidation par bureau.',
+    };
+  }
+}
+
+/**
+ * Action pour obtenir la consolidation globale de la Division Contrôle (Niveau 4).
+ */
+export async function fetchConsolidationDivisionAction(): Promise<
+  ActionResponse<SyntheseDivisionConsolidation>
+> {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, error: 'Authentification requise.' };
+    }
+
+    const result = await getConsolidationDivisionControle(user);
+    return { success: true, data: result };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur lors de la consolidation globale.',
     };
   }
 }

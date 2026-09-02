@@ -6,6 +6,7 @@ import type { FicheOrdonnancementItem } from '@/lib/recoupement/ordonnancement-s
 import {
   fetchFichesOrdonnancementAction,
   transmettreFicheDivisionControleAction,
+  transmettreFichesDivisionControleAction,
 } from '@/app/actions/recoupement-ordonnancement';
 import { EmptyState } from '@/components/ui/institutional-state';
 
@@ -41,6 +42,8 @@ export function FichesClient({
   const [isPending, startTransition] = useTransition();
   const [transmittingId, setTransmittingId] = useState<string | null>(null);
   const [isTransmitting, startTransmitting] = useTransition();
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [batchMessage, setBatchMessage] = useState<string | null>(null);
 
   const isBureauAnalyse =
     (['CHEF_BUREAU', 'ANALYSTE'].includes(currentUser.role) &&
@@ -92,33 +95,99 @@ export function FichesClient({
     });
   };
 
+  const fichesTransmissibles = data.fiches.filter((fiche) => fiche.statut_transmission === 'CONSERVEE_BUREAU');
+  const toggleSelection = (id: string) => setSelectedIds((ids) => ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id]);
+  const transmettreSelection = () => {
+    if (!selectedIds.length) return;
+    setBatchMessage(null);
+    startTransmitting(async () => {
+      const res = await transmettreFichesDivisionControleAction(selectedIds);
+      if (!res.success || !res.data) {
+        setBatchMessage(res.error || 'Transmission impossible.');
+        return;
+      }
+      setBatchMessage(`${res.data.count} fiche(s) transmise(s) avec succès.`);
+      setSelectedIds([]);
+      setData((previous) => ({ ...previous, total: statutTransmission === 'CONSERVEE_BUREAU' ? Math.max(0, previous.total - res.data!.count) : previous.total, fiches: previous.fiches.filter((fiche) => !res.data!.transmittedIds.includes(fiche.id)) }));
+    });
+  };
+
+  const pageTitle =
+    initialStatutTransmission === 'CONSERVEE_BUREAU'
+      ? 'Fiches à transmettre'
+      : initialStatutTransmission === 'TRANSMIS_DIVISION_CONTROLE'
+        ? 'Fiches transmises'
+        : 'Fiches d\'Enregistrement des Données d\'Ordonnancement';
+
+  const pageDescription =
+    initialStatutTransmission === 'CONSERVEE_BUREAU'
+      ? 'Fiches d\'ordonnancement préparées, enregistrées et encore conservées au Bureau — non encore transmises au Contrôle.'
+      : initialStatutTransmission === 'TRANSMIS_DIVISION_CONTROLE'
+        ? 'Fiches d\'ordonnancement déjà transmises à la Division Contrôle. Consultation uniquement.'
+        : 'Registre des fiches d\'ordonnancement enregistrées, conservées au Bureau et transmises au Contrôle.';
+
+  const pageBadge =
+    initialStatutTransmission === 'CONSERVEE_BUREAU'
+      ? { label: '📋 À transmettre', className: 'rounded-md bg-blue-100 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-[#0a5db5]' }
+      : initialStatutTransmission === 'TRANSMIS_DIVISION_CONTROLE'
+        ? { label: '📤 Transmises', className: 'rounded-md bg-purple-100 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-purple-700' }
+        : { label: 'Ordonnancement', className: 'rounded-md bg-slate-100 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-600' };
+
   return (
     <div className="space-y-6 pb-12">
       {/* EN-TÊTE */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#0a5db5]">Division Recoupement</span>
+            <span className={pageBadge.className}>{pageBadge.label}</span>
             <span className="text-slate-300">·</span>
             <span className="text-xs font-semibold text-slate-500">Bureau Analyse et Recoupement</span>
           </div>
           <h1 className="mt-1 text-2xl font-extrabold text-slate-900">
-            Fiches d&apos;Enregistrement des Données d&apos;Ordonnancement
+            {pageTitle}
           </h1>
           <p className="mt-1 text-xs text-slate-500">
-            Registre des fiches d&apos;ordonnancement enregistrées, conservées au Bureau et transmises au Contrôle.
+            {pageDescription}
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <Link
-            href="/assujettis"
-            className="inline-flex items-center gap-2 rounded-xl bg-[#0a5db5] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#093b78] transition"
+            href="/recoupement/assujettis"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
           >
             <span>◈ Répertoire des assujettis</span>
           </Link>
+          {initialStatutTransmission === 'CONSERVEE_BUREAU' && (
+            <Link
+              href="/recoupement/assujettis?filtre=SANS_FICHE"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#0a5db5] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#093b78] transition"
+            >
+              <span>📝 Fiches à préparer</span>
+            </Link>
+          )}
+          {initialStatutTransmission === 'TRANSMIS_DIVISION_CONTROLE' && (
+            <Link
+              href="/recoupement/fiches-ordonnancement?statut_transmission=CONSERVEE_BUREAU"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#0a5db5] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#093b78] transition"
+            >
+              <span>📋 Fiches à transmettre</span>
+            </Link>
+          )}
         </div>
       </div>
+
+      {isBureauAnalyse && statutTransmission !== 'TRANSMIS_DIVISION_CONTROLE' && fichesTransmissibles.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50/50 p-4 text-xs">
+          <span className="font-bold text-[#093b78]">{selectedIds.length} fiche(s) sélectionnée(s)</span>
+          <button type="button" onClick={() => setSelectedIds(fichesTransmissibles.map((fiche) => fiche.id))} className="font-semibold text-[#0a5db5] hover:underline">Sélectionner tout</button>
+          <button type="button" onClick={() => setSelectedIds([])} className="font-semibold text-slate-600 hover:underline">Désélectionner tout</button>
+          <button type="button" disabled={!selectedIds.length || isTransmitting} onClick={transmettreSelection} className="rounded-xl bg-[#0a5db5] px-4 py-2 font-bold text-white disabled:opacity-50">
+            {isTransmitting ? 'Transmission...' : `Transmettre les ${selectedIds.length} fiche(s)`}
+          </button>
+          {batchMessage && <span className={batchMessage.includes('succès') ? 'font-semibold text-emerald-700' : 'font-semibold text-red-700'}>{batchMessage}</span>}
+        </div>
+      )}
 
       {/* FILTRES */}
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
@@ -194,6 +263,7 @@ export function FichesClient({
             <table className="w-full text-left text-xs">
               <thead className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-600">
                 <tr>
+                  {isBureauAnalyse && statutTransmission !== 'TRANSMIS_DIVISION_CONTROLE' && <th className="px-4 py-3.5">Sélection</th>}
                   <th className="px-4 py-3.5">Numéro Fiche</th>
                   <th className="px-4 py-3.5">Assujetti / Secteur</th>
                   <th className="px-4 py-3.5">Bureau Compétent</th>
@@ -209,6 +279,7 @@ export function FichesClient({
 
                   return (
                     <tr key={fiche.id} className="hover:bg-slate-50/60 transition">
+                      {isBureauAnalyse && statutTransmission !== 'TRANSMIS_DIVISION_CONTROLE' && <td className="px-4 py-3"><input aria-label={`Sélectionner ${fiche.numero_fiche}`} type="checkbox" disabled={isTransmise} checked={selectedIds.includes(fiche.id)} onChange={() => toggleSelection(fiche.id)} /></td>}
                       <td className="px-4 py-3 font-medium">
                         <span className="font-mono font-bold text-[#0a5db5]">{fiche.numero_fiche}</span>
                         <p className="text-[11px] text-slate-400">Série : {fiche.numero_serie} ({fiche.delai_traitement_jours}j)</p>

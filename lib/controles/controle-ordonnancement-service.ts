@@ -13,6 +13,8 @@ import {
   type VerificationFilter,
   type StatutNoteVerification,
   type StatutPaiementAssujetti,
+  type SyntheseBureauConsolidation,
+  type SyntheseDivisionConsolidation,
 } from '@/lib/validations/controle-ordonnancement';
 import {
   assertCanReadControleOrdonnancement,
@@ -42,10 +44,13 @@ export interface VerificationItem {
   statut_paiement: StatutPaiementAssujetti;
   reste_du_cdf: number;
   reste_du_usd: number;
+  /** Pénalité calculée uniquement si penalite_applicable = true. Toujours >= 0. */
   penalite_cdf: number;
   penalite_usd: number;
   total_du_cdf: number;
   total_du_usd: number;
+  /** Flag indiquant si la pénalité a été explicitement validée par l'agent. */
+  penalite_applicable: boolean;
   observations: string | null;
   verifie_par: string;
   date_verification: string;
@@ -216,6 +221,7 @@ export async function getOrdonnancementsAControler(
           penalite_usd: Number(verifRaw.penalite_usd) || 0,
           total_du_cdf: Number(verifRaw.total_du_cdf) || 0,
           total_du_usd: Number(verifRaw.total_du_usd) || 0,
+          penalite_applicable: Boolean(verifRaw.penalite_applicable),
           observations: verifRaw.observations,
           verifie_par: verifRaw.verifie_par,
           date_verification: verifRaw.date_verification,
@@ -326,6 +332,7 @@ export async function getOrdonnancementAControlerById(
         penalite_usd: Number(verifRaw.penalite_usd) || 0,
         total_du_cdf: Number(verifRaw.total_du_cdf) || 0,
         total_du_usd: Number(verifRaw.total_du_usd) || 0,
+        penalite_applicable: Number(verifRaw.penalite_cdf) > 0 || Number(verifRaw.penalite_usd) > 0,
         observations: verifRaw.observations,
         verifie_par: verifRaw.verifie_par,
         date_verification: verifRaw.date_verification,
@@ -385,12 +392,15 @@ export async function enregistrerVerificationOrdonnancement(
   assertCanManageControleOrdonnancement(user, fiche.bureau_id);
 
   // 3. Calculs financiers et métier stricts (sans conversion de devises)
+  // Note : le montant de la fiche d'ordonnancement (BUR_ANA_REC) constitue le montant dû.
+  // Il n'est jamais écrasé par le montant payé.
   const montantOrdCDF = Number(fiche.montant_cdf) || 0;
   const montantOrdUSD = Number(fiche.montant_usd) || 0;
   const montantPayeCDF = Number(validated.montant_paye_cdf) || 0;
   const montantPayeUSD = Number(validated.montant_paye_usd) || 0;
 
-  const dateEcheance = calculerDateEcheance(fiche.date_note_perception, fiche.delai_traitement_jours);
+  // Source unique : date d'émission saisie par BUR_ANA_REC dans la fiche.
+  const dateEcheance = calculerDateEcheance(fiche.date_note_perception);
   const { joursRetard } = calculerRetard(dateEcheance, validated.date_paiement);
 
   let resteDuCDF = 0;
@@ -405,8 +415,11 @@ export async function enregistrerVerificationOrdonnancement(
     resteDuUSD = calculerResteDu(montantOrdUSD, montantPayeUSD);
   }
 
-  const penaliteCDF = calculerPenalite(resteDuCDF);
-  const penaliteUSD = calculerPenalite(resteDuUSD);
+  // La pénalité de retard (5 %) s'applique UNIQUEMENT en cas de retard effectif (joursRetard > 0)
+  // et si l'agent l'a explicitement validée.
+  const estEnRetard = joursRetard > 0;
+  const penaliteCDF = validated.penalite_applicable && estEnRetard ? calculerPenalite(resteDuCDF) : 0;
+  const penaliteUSD = validated.penalite_applicable && estEnRetard ? calculerPenalite(resteDuUSD) : 0;
 
   const totalDuCDF = calculerTotalDu(resteDuCDF, penaliteCDF);
   const totalDuUSD = calculerTotalDu(resteDuUSD, penaliteUSD);
@@ -479,6 +492,7 @@ export async function enregistrerVerificationOrdonnancement(
       statut_paiement: statutPaiement,
       reste_du_cdf: resteDuCDF,
       reste_du_usd: resteDuUSD,
+      penalite_applicable: validated.penalite_applicable,
       penalite_cdf: penaliteCDF,
       penalite_usd: penaliteUSD,
     },
@@ -495,6 +509,7 @@ export async function enregistrerVerificationOrdonnancement(
     penalite_usd: Number(verif.penalite_usd) || 0,
     total_du_cdf: Number(verif.total_du_cdf) || 0,
     total_du_usd: Number(verif.total_du_usd) || 0,
+    penalite_applicable: Boolean(validated.penalite_applicable),
   };
 }
 
@@ -664,4 +679,130 @@ export async function getSyntheseSectorielleControle(
   }
 
   return resultats;
+}
+
+/**
+ * Consolidation Niveau 3 : Agrégation par Bureau de Contrôle (RM-040, RM-041).
+ * Dissocie strictement les totaux CDF et USD.
+ */
+export async function getConsolidationBureauxControle(
+  user: CurrentUser,
+  targetBureauId?: string
+): Promise<SyntheseBureauConsolidation[]> {
+  const synthesesSecteurs = await getSyntheseSectorielleControle(user, targetBureauId);
+
+  const mapBureaux: Record<string, SyntheseBureauConsolidation> = {};
+
+  for (const s of synthesesSecteurs) {
+    if (!mapBureaux[s.bureau_id]) {
+      mapBureaux[s.bureau_id] = {
+        bureau_id: s.bureau_id,
+        bureau_code: s.bureau_nom, // default fallback
+        bureau_nom: s.bureau_nom,
+        nombre_secteurs: 0,
+        nombre_assujettis: 0,
+        nombre_fiches: 0,
+        nombre_debiteurs: 0,
+        nombre_retards: 0,
+        nombre_notes_absentes: 0,
+        nombre_non_declarants: 0,
+        cdf: {
+          total_du: 0,
+          total_paye: 0,
+          manque_a_gagner: 0,
+          penalites: 0,
+          total_exigible: 0,
+        },
+        usd: {
+          total_du: 0,
+          total_paye: 0,
+          manque_a_gagner: 0,
+          penalites: 0,
+          total_exigible: 0,
+        },
+      };
+    }
+
+    const b = mapBureaux[s.bureau_id];
+    b.nombre_secteurs += 1;
+    b.nombre_assujettis += s.nombre_assujettis;
+    b.nombre_fiches += s.nombre_fiches;
+    b.nombre_debiteurs += s.nombre_debiteurs;
+    b.nombre_retards += s.nombre_retards;
+    b.nombre_notes_absentes += s.nombre_notes_absentes;
+    b.nombre_non_declarants += s.nombre_non_declarants;
+
+    b.cdf.total_du += s.total_du_cdf;
+    b.cdf.total_paye += s.total_paye_cdf;
+    b.cdf.manque_a_gagner += s.manque_a_gagner_cdf;
+    b.cdf.penalites += s.penalites_cdf;
+    b.cdf.total_exigible += s.total_exigible_cdf;
+
+    b.usd.total_du += s.total_du_usd;
+    b.usd.total_paye += s.total_paye_usd;
+    b.usd.manque_a_gagner += s.manque_a_gagner_usd;
+    b.usd.penalites += s.penalites_usd;
+    b.usd.total_exigible += s.total_exigible_usd;
+  }
+
+  return Object.values(mapBureaux).sort((a, b) => b.cdf.manque_a_gagner - a.cdf.manque_a_gagner);
+}
+
+/**
+ * Consolidation Niveau 4 : Synthèse globale Division Contrôle & Direction Générale.
+ * Dissocie strictement les totaux CDF et USD.
+ */
+export async function getConsolidationDivisionControle(
+  user: CurrentUser
+): Promise<SyntheseDivisionConsolidation> {
+  const synthesesBureaux = await getConsolidationBureauxControle(user);
+
+  const division: SyntheseDivisionConsolidation = {
+    nombre_bureaux: synthesesBureaux.length,
+    nombre_secteurs: 0,
+    nombre_assujettis: 0,
+    nombre_fiches: 0,
+    nombre_debiteurs: 0,
+    nombre_retards: 0,
+    nombre_notes_absentes: 0,
+    nombre_non_declarants: 0,
+    cdf: {
+      total_du: 0,
+      total_paye: 0,
+      manque_a_gagner: 0,
+      penalites: 0,
+      total_exigible: 0,
+    },
+    usd: {
+      total_du: 0,
+      total_paye: 0,
+      manque_a_gagner: 0,
+      penalites: 0,
+      total_exigible: 0,
+    },
+  };
+
+  for (const b of synthesesBureaux) {
+    division.nombre_secteurs += b.nombre_secteurs;
+    division.nombre_assujettis += b.nombre_assujettis;
+    division.nombre_fiches += b.nombre_fiches;
+    division.nombre_debiteurs += b.nombre_debiteurs;
+    division.nombre_retards += b.nombre_retards;
+    division.nombre_notes_absentes += b.nombre_notes_absentes;
+    division.nombre_non_declarants += b.nombre_non_declarants;
+
+    division.cdf.total_du += b.cdf.total_du;
+    division.cdf.total_paye += b.cdf.total_paye;
+    division.cdf.manque_a_gagner += b.cdf.manque_a_gagner;
+    division.cdf.penalites += b.cdf.penalites;
+    division.cdf.total_exigible += b.cdf.total_exigible;
+
+    division.usd.total_du += b.usd.total_du;
+    division.usd.total_paye += b.usd.total_paye;
+    division.usd.manque_a_gagner += b.usd.manque_a_gagner;
+    division.usd.penalites += b.usd.penalites;
+    division.usd.total_exigible += b.usd.total_exigible;
+  }
+
+  return division;
 }

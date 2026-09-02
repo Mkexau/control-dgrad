@@ -16,6 +16,8 @@ export const VerificationOrdonnancementInputSchema = z.object({
   fiche_ordonnancement_id: z.string().uuid('Identifiant de fiche d’ordonnancement invalide.'),
   statut_note: StatutNoteVerificationEnum,
   numero_note_verifie: z.string().trim().max(100).optional().nullable(),
+
+  // --- PAIEMENT CONSTATÉ ---
   montant_paye_cdf: z.number().min(0, 'Le montant payé CDF ne peut pas être négatif.').default(0),
   montant_paye_usd: z.number().min(0, 'Le montant payé USD ne peut pas être négatif.').default(0),
   date_paiement: z
@@ -23,6 +25,12 @@ export const VerificationOrdonnancementInputSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format de date invalide (AAAA-MM-JJ).')
     .optional()
     .nullable(),
+
+  // --- PÉNALITÉ CONDITIONNELLE ---
+  // La pénalité de 5 % ne s'applique que si l'agent la valide explicitement.
+  // Les informations de la "déclaration" sont celles de la fiche d'ordonnancement (BUR_ANA_REC).
+  penalite_applicable: z.boolean().default(false),
+
   observations: z.string().trim().max(1000).optional().nullable(),
   situation_explicite: StatutPaiementAssujettiEnum.optional().nullable(),
 });
@@ -42,6 +50,21 @@ export const VerificationFilterSchema = z.object({
 export type VerificationFilter = z.infer<typeof VerificationFilterSchema>;
 
 // =============================================================================
+// CONSTANTES MÉTIER CENTRALISÉES (RM-042)
+// =============================================================================
+
+/**
+ * Délai standard de paiement d'une note de perception : 10 jours calendaires.
+ */
+export const DELAI_PAIEMENT_STANDARD = 10;
+
+/**
+ * Taux indicatif de pénalité en cas de dépassement du délai de paiement : 5 % (0.05).
+ * Applicable UNIQUEMENT sur le reste dû effectif en cas de retard validé par le contrôleur.
+ */
+export const TAUX_PENALITE_RETARD_STANDARD = 0.05;
+
+// =============================================================================
 // FONCTIONS DE CALCUL MÉTIER PURS
 // =============================================================================
 
@@ -57,13 +80,21 @@ export function calculerResteDu(montantOrdonnance: number, montantPaye: number):
 }
 
 /**
- * Calcule la pénalité légale de 5 % appliquée STRICTEMENT sur le reste dû.
- * Si le montant est déjà soldé (reste dû = 0), la pénalité est nulle.
+ * Calcule la pénalité sur le reste dû au taux configuré (par défaut 5 % / 0.05).
+ * Conditions d'application :
+ * - Le paiement est en retard (estEnRetard === true)
+ * - Le reste dû est supérieur à zéro (resteDu > 0)
+ * Si le paiement est effectué dans les délais (estEnRetard === false), la pénalité est STRICTEMENT égale à 0.
  */
-export function calculerPenalite(resteDu: number): number {
+export function calculerPenalite(
+  resteDu: number,
+  taux: number = TAUX_PENALITE_RETARD_STANDARD,
+  estEnRetard: boolean = true
+): number {
+  if (!estEnRetard) return 0;
   const reste = Math.max(0, Number(resteDu) || 0);
-  if (reste <= 0) return 0;
-  return Number((reste * 0.05).toFixed(2));
+  if (reste <= 0 || taux <= 0) return 0;
+  return Number((reste * taux).toFixed(2));
 }
 
 /**
@@ -73,16 +104,52 @@ export function calculerTotalDu(resteDu: number, penalite: number): number {
   return Number(((Number(resteDu) || 0) + (Number(penalite) || 0)).toFixed(2));
 }
 
+// =============================================================================
+// TYPES DE CONSOLIDATION MULTI-NIVEAUX (RM-040, RM-041)
+// =============================================================================
+
+export interface ConsolidationFinanciereDevise {
+  total_du: number;
+  total_paye: number;
+  manque_a_gagner: number;
+  penalites: number;
+  total_exigible: number;
+}
+
+export interface ConsolidationLigneBase {
+  nombre_assujettis: number;
+  nombre_fiches: number;
+  nombre_debiteurs: number;
+  nombre_retards: number;
+  nombre_notes_absentes: number;
+  nombre_non_declarants: number;
+  cdf: ConsolidationFinanciereDevise;
+  usd: ConsolidationFinanciereDevise;
+}
+
+export interface SyntheseBureauConsolidation extends ConsolidationLigneBase {
+  bureau_id: string;
+  bureau_code: string;
+  bureau_nom: string;
+  nombre_secteurs: number;
+}
+
+export interface SyntheseDivisionConsolidation extends ConsolidationLigneBase {
+  nombre_bureaux: number;
+  nombre_secteurs: number;
+}
+
 /**
- * Calcule la date d'échéance à partir de la date de note et du délai en jours.
+ * Calcule la date limite exclusivement depuis la date d'émission de la note de
+ * perception, avec le délai réglementaire fixe de dix jours calendaires.
+ * Aucun délai reçu de l'interface ne peut modifier ce calcul.
  */
-export function calculerDateEcheance(dateNote: string, delaiJours: number): string {
-  const date = new Date(dateNote);
+export function calculerDateEcheance(dateEmissionNote: string): string {
+  const date = new Date(dateEmissionNote);
   if (isNaN(date.getTime())) {
-    return dateNote;
+    return dateEmissionNote;
   }
-  const jours = Math.max(1, Number(delaiJours) || 1);
-  date.setDate(date.getDate() + jours);
+  date.setDate(date.getDate() + DELAI_PAIEMENT_STANDARD);
   return date.toISOString().slice(0, 10);
 }
 

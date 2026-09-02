@@ -19,6 +19,7 @@ import {
   FicheOrdonnancementCreateSchema,
   FicheOrdonnancementFilterSchema,
   FicheOrdonnancementTransmissionSchema,
+  FichesOrdonnancementTransmissionMasseSchema,
 } from '@/lib/validations/recoupement-ordonnancement';
 import {
   getInformationsRecues,
@@ -31,6 +32,7 @@ import {
   getFichesOrdonnancement,
   getFicheOrdonnancementById,
   transmettreFicheDivisionControle,
+  transmettreFichesDivisionControle,
   getRecoupementDashboardMetrics,
   type InformationRecueItem,
   type FicheOrdonnancementItem,
@@ -292,6 +294,23 @@ export async function transmettreFicheDivisionControleAction(
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Erreur lors de la transmission de la fiche.';
     return { success: false, error: msg };
+  }
+}
+
+export async function transmettreFichesDivisionControleAction(ficheIds: string[]): Promise<ActionResponse<{ transmittedIds: string[]; count: number }>> {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, error: 'Session expirée ou utilisateur non connecté.' };
+    const parsed = FichesOrdonnancementTransmissionMasseSchema.safeParse({ fiche_ids: ficheIds });
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message || 'Sélection invalide.' };
+    const result = await transmettreFichesDivisionControle(user, parsed.data.fiche_ids);
+    revalidatePath('/recoupement/assujettis');
+    revalidatePath('/recoupement/fiches-ordonnancement');
+    revalidatePath('/recoupement/transmissions');
+    revalidatePath('/dashboard');
+    return { success: true, data: result };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Erreur lors de la transmission des fiches.' };
   }
 }
 

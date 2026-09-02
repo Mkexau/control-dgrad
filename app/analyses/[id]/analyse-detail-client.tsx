@@ -215,14 +215,17 @@ export function AnalyseDetailClient({ analyse: initialAnalyse, availableAssujett
             </div>
           ) : (
             (analyse.assujettis || []).map((aa) => (
-              <div key={aa.assujetti_id} className="px-6 py-4 flex items-start justify-between gap-4">
+              <div key={aa.assujetti_id} className="px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <a href={`/assujettis/${aa.assujetti_id}`} className="font-medium text-blue-600 dark:text-blue-400 hover:underline text-sm">
+                    <Link href={`/recoupement/assujettis/${aa.assujetti_id}`} className="font-bold text-[#0a5db5] hover:underline text-sm">
                       {aa.assujetti?.nom_raison_sociale || aa.assujetti_id}
-                    </a>
+                    </Link>
+                    {aa.assujetti?.identifiant && (
+                      <span className="font-mono text-xs text-slate-500">({aa.assujetti.identifiant})</span>
+                    )}
                     {aa.priorite && (
-                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold ${aa.priorite === 'HAUTE' ? 'bg-red-100 text-red-700' : aa.priorite === 'MOYENNE' ? 'bg-amber-100 text-amber-700' : 'bg-zinc-100 text-zinc-600'}`}>
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${aa.priorite === 'HAUTE' ? 'bg-red-100 text-red-700' : aa.priorite === 'MOYENNE' ? 'bg-amber-100 text-amber-700' : 'bg-zinc-100 text-zinc-600'}`}>
                         {aa.priorite}
                       </span>
                     )}
@@ -235,16 +238,24 @@ export function AnalyseDetailClient({ analyse: initialAnalyse, availableAssujett
                     </div>
                   )}
                 </div>
-                {canModify && (
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveAssujetti(aa.assujetti_id)}
-                    disabled={removePending}
-                    className="text-xs text-red-500 hover:text-red-700 disabled:opacity-40 transition-colors"
+                <div className="flex items-center gap-2 self-end sm:self-auto">
+                  <Link
+                    href={`/recoupement/assujettis/${aa.assujetti_id}`}
+                    className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-1.5 text-xs font-bold text-[#0a5db5] hover:bg-blue-100 transition"
                   >
-                    Retirer
-                  </button>
-                )}
+                    📋 Préparer Fiche
+                  </Link>
+                  {canModify && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveAssujetti(aa.assujetti_id)}
+                      disabled={removePending}
+                      className="text-xs text-red-500 hover:text-red-700 disabled:opacity-40 transition-colors px-2 py-1"
+                    >
+                      Retirer
+                    </button>
+                  )}
+                </div>
               </div>
             ))
           )}

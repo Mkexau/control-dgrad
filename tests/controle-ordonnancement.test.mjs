@@ -69,12 +69,12 @@ describe("1. Calculs Financiers Purs : Reste Du CDF et USD", async () => {
 describe("2. Calcul Dates d Echeance et Retard de Paiement", async () => {
   const { calculerDateEcheance, calculerRetard } = await import('../lib/validations/controle-ordonnancement.ts');
 
-  it("Date d echeance : 2026-08-01 + 15 jours = 2026-08-16", () => {
-    assert.equal(calculerDateEcheance('2026-08-01', 15), '2026-08-16');
+  it("Date d echeance : 2026-08-01 + 10 jours = 2026-08-11", () => {
+    assert.equal(calculerDateEcheance('2026-08-01'), '2026-08-11');
   });
 
-  it("Date d echeance : 2026-01-20 + 30 jours = 2026-02-19", () => {
-    assert.equal(calculerDateEcheance('2026-01-20', 30), '2026-02-19');
+  it("Date d echeance : 2026-01-20 + 10 jours = 2026-01-30", () => {
+    assert.equal(calculerDateEcheance('2026-01-20'), '2026-01-30');
   });
 
   it("Retard : Echeance 2026-08-16, paye 2026-08-25 -> 9 jours de retard", () => {
@@ -211,6 +211,21 @@ describe("4. Validation Zod : VerificationOrdonnancementInputSchema", async () =
       statut_note: 'INEXISTANT',
     });
     assert.ok(!res.success, 'Statut de note inconnu doit etre refuse');
+  });
+});
+
+describe('Transmission groupée des fiches d’ordonnancement', async () => {
+  const { FichesOrdonnancementTransmissionMasseSchema } = await import('../lib/validations/recoupement-ordonnancement.ts');
+  const ficheA = '6af6b7a2-13e1-4db5-8790-a0c7a0e1b001';
+  const ficheB = '6af6b7a2-13e1-4db5-8790-a0c7a0e1b002';
+
+  it('accepte une sélection multiple de fiches distinctes', () => {
+    assert.ok(FichesOrdonnancementTransmissionMasseSchema.safeParse({ fiche_ids: [ficheA, ficheB] }).success);
+  });
+
+  it('refuse une sélection vide ou contenant un doublon', () => {
+    assert.ok(!FichesOrdonnancementTransmissionMasseSchema.safeParse({ fiche_ids: [] }).success);
+    assert.ok(!FichesOrdonnancementTransmissionMasseSchema.safeParse({ fiche_ids: [ficheA, ficheA] }).success);
   });
 });
 

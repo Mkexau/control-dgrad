@@ -22,7 +22,7 @@ describe('1. Vérification du Référentiel des 144 Agents de Recette', async ()
     const { data: agents, error } = await adminSupabase
       .from('agents')
       .select('id, matricule, nom, prenom, bureau_id, secteur_id, specialite, actif, profile_id')
-      .not('secteur_id', 'is', null);
+      .is('profile_id', null);
 
     assert.ifError(error);
     assert.equal(agents?.length, 144, 'Il doit y avoir exactement 144 agents de recette métier');
@@ -45,7 +45,7 @@ describe('1. Vérification du Référentiel des 144 Agents de Recette', async ()
     const { data: agents, error: aErr } = await adminSupabase
       .from('agents')
       .select('id, bureau_id')
-      .not('secteur_id', 'is', null);
+      .is('profile_id', null);
 
     assert.ifError(aErr);
 
@@ -64,15 +64,15 @@ describe('1. Vérification du Référentiel des 144 Agents de Recette', async ()
     }
   });
 
-  // 3. Répartition par secteur (48 secteurs x 3 agents = 144)
-  it('Chacun des 48 secteurs doit compter exactement 3 agents de recette', async () => {
+  // 3. Répartition par secteur : 36 secteurs de contrôle x 3 agents = 108 agents
+  it('Chacun des 36 secteurs de contrôle doit compter exactement 3 agents de recette', async () => {
     const { data: secteurs, error: sErr } = await adminSupabase
       .from('secteurs')
       .select('id, code, nom, bureau_id')
       .order('code');
 
     assert.ifError(sErr);
-    assert.equal(secteurs?.length, 48, 'Il doit y avoir exactement 48 secteurs répartis sur les 8 bureaux');
+    assert.equal(secteurs?.length, 36, 'Il doit y avoir exactement 36 secteurs répartis sur les 6 bureaux de contrôle');
 
     const { data: agents, error: aErr } = await adminSupabase
       .from('agents')
@@ -80,6 +80,7 @@ describe('1. Vérification du Référentiel des 144 Agents de Recette', async ()
       .not('secteur_id', 'is', null);
 
     assert.ifError(aErr);
+    assert.equal(agents?.length, 108, 'Les 36 secteurs de contrôle doivent compter 108 agents au total (3 par secteur)');
 
     const countBySecteur = {};
     for (const ag of agents || []) {
@@ -96,12 +97,33 @@ describe('1. Vérification du Référentiel des 144 Agents de Recette', async ()
     }
   });
 
-  // 4. Tous actifs et données complètes
+  // 4. Les 36 agents de recoupement (BUR_ANA_REC & BUR_DOC) sont transversaux (secteur_id null)
+  it('Les 36 agents des bureaux de recoupement sont transversaux sans secteur rattaché', async () => {
+    const { data: bureauxRecoupement } = await adminSupabase
+      .from('bureaux')
+      .select('id, code')
+      .in('code', ['BUR_ANA_REC', 'BUR_DOC']);
+
+    const bIds = bureauxRecoupement?.map((b) => b.id) || [];
+    const { data: agentsRecoupement, error } = await adminSupabase
+      .from('agents')
+      .select('id, matricule, bureau_id, secteur_id')
+      .in('bureau_id', bIds)
+      .is('profile_id', null);
+
+    assert.ifError(error);
+    assert.equal(agentsRecoupement?.length, 36, 'Il doit y avoir 36 agents de recoupement');
+    for (const ag of agentsRecoupement || []) {
+      assert.equal(ag.secteur_id, null, `L'agent transversal ${ag.matricule} ne doit pas avoir de secteur_id`);
+    }
+  });
+
+  // 5. Tous actifs et données complètes
   it('Tous les 144 agents doivent être actifs avec nom, prénom, matricule et spécialité', async () => {
     const { data: agents, error } = await adminSupabase
       .from('agents')
       .select('id, matricule, nom, prenom, specialite, actif')
-      .not('secteur_id', 'is', null);
+      .is('profile_id', null);
 
     assert.ifError(error);
 

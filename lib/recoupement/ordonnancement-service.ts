@@ -716,6 +716,9 @@ export async function getFichesOrdonnancement(
   if (parsed.secteur_id) {
     query = query.eq('secteur_id', parsed.secteur_id);
   }
+  if (parsed.assujetti_id) {
+    query = query.eq('assujetti_id', parsed.assujetti_id);
+  }
   if (parsed.search) {
     const term = `%${parsed.search}%`;
     query = query.or(`numero_fiche.ilike.${term},numero_note_perception.ilike.${term},numero_serie.ilike.${term}`);
@@ -886,6 +889,40 @@ export async function transmettreFicheDivisionControle(
 
   const updated = await getFicheOrdonnancementById(user, ficheId);
   return updated!;
+}
+
+export async function transmettreFichesDivisionControle(user: CurrentUser, ficheIds: string[]) {
+  assertCanManageRecoupementBureau(user);
+  const ids = [...new Set(ficheIds)];
+  const supabase = createAdminClient();
+  const { data: fiches, error } = await supabase
+    .from('fiches_ordonnancement')
+    .select('id, numero_fiche, statut_transmission')
+    .in('id', ids);
+  if (error || !fiches || fiches.length !== ids.length) {
+    throw new Error('Une ou plusieurs fiches sont introuvables ou hors de votre périmètre.');
+  }
+  const invalides = fiches.filter((fiche) => fiche.statut_transmission !== 'CONSERVEE_BUREAU');
+  if (invalides.length) {
+    throw new Error(`Transmission annulée : ${invalides.map((f) => f.numero_fiche).join(', ')} est déjà transmise ou non transmissible.`);
+  }
+
+  const dateTransmission = new Date().toISOString();
+  const { data: updated, error: updateError } = await supabase
+    .from('fiches_ordonnancement')
+    .update({ statut_transmission: 'TRANSMIS_DIVISION_CONTROLE', date_transmission_division: dateTransmission, transmis_par: user.id, updated_at: dateTransmission })
+    .in('id', ids)
+    .eq('statut_transmission', 'CONSERVEE_BUREAU')
+    .select('id, numero_fiche');
+  if (updateError || !updated || updated.length !== ids.length) {
+    throw new Error('Transmission annulée : une fiche a changé de statut avant la validation.');
+  }
+  await Promise.all(updated.map((fiche) => logAuditEvent({
+    userId: user.id, action: 'TRANSMISSION', entityType: 'fiche_ordonnancement', entityId: fiche.id,
+    oldData: { statut_transmission: 'CONSERVEE_BUREAU' },
+    newData: { statut_transmission: 'TRANSMIS_DIVISION_CONTROLE', date_transmission_division: dateTransmission, transmis_par: user.id },
+  })));
+  return { transmittedIds: updated.map((fiche) => fiche.id), count: updated.length };
 }
 
 // -----------------------------------------------------------------------------

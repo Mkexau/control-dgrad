@@ -12,7 +12,6 @@ import {
   type NotePerceptionFilterInput,
   NotePerceptionCreateSchema,
   OrdonnancementCreateSchema,
-  NotePerceptionFilterSchema,
 } from '@/lib/validations/recoupement';
 import {
   getNotesPerception,

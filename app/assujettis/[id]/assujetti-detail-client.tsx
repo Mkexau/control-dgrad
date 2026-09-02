@@ -2,14 +2,12 @@
 
 import React, { useState, useTransition } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { createNotePerceptionAction, createOrdonnancementAction } from '@/app/actions/recoupement';
 import { updateAssujettiAction } from '@/app/actions/assujettis';
 import {
   creerFicheOrdonnancementAction,
   transmettreFicheDivisionControleAction,
 } from '@/app/actions/recoupement-ordonnancement';
-import type { AssujettiItem, NotePerceptionItem, OrdonnancementItem, RecoupementSynthese } from '@/lib/recoupement/recoupement-service';
+import type { AssujettiItem, RecoupementSynthese } from '@/lib/recoupement/recoupement-service';
 
 const ROLES_ECRITURE = ['ANALYSTE', 'CHEF_BUREAU'];
 
@@ -58,8 +56,6 @@ interface CurrentUser {
 
 interface Props {
   assujetti: AssujettiItem;
-  notes: NotePerceptionItem[];
-  ordonnancements: OrdonnancementItem[];
   fiches: FicheItem[];
   availableBureaux: Bureau[];
   availableSecteurs: Secteur[];
@@ -69,18 +65,13 @@ interface Props {
 
 export function AssujettiDetailClient({
   assujetti: initialAssujetti,
-  notes: initialNotes,
-  ordonnancements: initialOrds,
   fiches: initialFiches,
   availableBureaux = [],
   availableSecteurs = [],
   synthese,
   currentUser,
 }: Props) {
-  const router = useRouter();
   const [assujetti, setAssujetti] = useState(initialAssujetti);
-  const [notes, setNotes] = useState(initialNotes);
-  const [ordonnancements, setOrds] = useState(initialOrds);
   const [fiches, setFiches] = useState<FicheItem[]>(initialFiches || []);
 
   // Modal mise à jour informations générales
@@ -120,17 +111,6 @@ export function AssujettiDetailClient({
   // Action d'envoi fiche au contrôle
   const [transmittingId, setTransmittingId] = useState<string | null>(null);
   const [transmittingPending, startTransmittingTransition] = useTransition();
-
-  // Modals historiques (notes unitaire / ordonnancement)
-  const [showNoteModal, setShowNoteModal] = useState(false);
-  const [noteForm, setNoteForm] = useState({ numero: '', date: '', acte_generateur: '', article_budgetaire: '', nombre_actes: 1, montant: 0, devise: 'CDF' as 'CDF' | 'USD' });
-  const [noteError, setNoteError] = useState('');
-  const [notePending, startNoteTransition] = useTransition();
-
-  const [showOrdModal, setShowOrdModal] = useState(false);
-  const [legacyOrdForm, setLegacyOrdForm] = useState({ numero: '', date: '', montant: 0, devise: 'CDF' as 'CDF' | 'USD', statut: 'ORDONNANCE' });
-  const [legacyOrdError, setLegacyOrdError] = useState('');
-  const [legacyOrdPending, startLegacyOrdTransition] = useTransition();
 
   const isBureauAnalyse =
     (['CHEF_BUREAU', 'ANALYSTE'].includes(currentUser.role) &&
@@ -252,27 +232,8 @@ export function AssujettiDetailClient({
     });
   };
 
-  const handleCreateNote = (e: React.FormEvent) => {
-    e.preventDefault();
-    setNoteError('');
-    startNoteTransition(async () => {
-      const res = await createNotePerceptionAction({ ...noteForm, assujetti_id: assujetti.id });
-      if (!res.success) { setNoteError(res.error || 'Erreur.'); return; }
-      if (res.data) setNotes((prev) => [res.data!, ...prev]);
-      setShowNoteModal(false);
-    });
-  };
-
-  const handleCreateLegacyOrd = (e: React.FormEvent) => {
-    e.preventDefault();
-    setLegacyOrdError('');
-    startLegacyOrdTransition(async () => {
-      const res = await createOrdonnancementAction({ ...legacyOrdForm, assujetti_id: assujetti.id });
-      if (!res.success) { setLegacyOrdError(res.error || 'Erreur.'); return; }
-      if (res.data) setOrds((prev) => [res.data!, ...prev]);
-      setShowOrdModal(false);
-    });
-  };
+  const isServiceAssiette = currentUser.role === 'SERVICE_ASSIETTE';
+  const repertoireUrl = isServiceAssiette ? '/assiette/assujettis' : '/assujettis';
 
   const fmtMontant = (v: number, devise: string) =>
     `${new Intl.NumberFormat('fr-CD').format(v)} ${devise}`;
@@ -281,12 +242,31 @@ export function AssujettiDetailClient({
     <div className="space-y-6 pb-12">
       {/* 1. FIL D'ARIANE */}
       <nav className="flex items-center gap-2 text-xs text-slate-500">
-        <Link href="/assujettis" className="text-[#0a5db5] font-semibold hover:underline">
-          ← Répertoire des Assujettis
+        <Link href="/dashboard" className="text-[#0a5db5] hover:underline">
+          Accueil
         </Link>
         <span>/</span>
-        <span className="text-slate-900 font-bold">{assujetti.nom_raison_sociale}</span>
+        <Link href={repertoireUrl} className="text-[#0a5db5] font-medium hover:underline">
+          {isServiceAssiette ? 'Assujettis' : 'Répertoire'}
+        </Link>
+        <span>/</span>
+        <Link href={repertoireUrl} className="text-[#0a5db5] font-medium hover:underline">
+          Répertoire
+        </Link>
+        <span>/</span>
+        <span className="font-bold text-slate-900 truncate max-w-xs">{assujetti.nom_raison_sociale}</span>
       </nav>
+
+      {/* Bouton retour explicite */}
+      <div>
+        <Link
+          href={repertoireUrl}
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0a5db5] hover:underline"
+        >
+          <span>←</span>
+          <span>Retour au répertoire</span>
+        </Link>
+      </div>
 
       {/* 2. SECTION A : INFORMATIONS GÉNÉRALES DE L'ASSUJETTI */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
@@ -480,7 +460,7 @@ export function AssujettiDetailClient({
 
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  Date de Note de perception <span className="text-red-500">*</span>
+                  Date d&apos;émission de la note de perception <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="date"
@@ -586,113 +566,115 @@ export function AssujettiDetailClient({
       )}
 
       {/* 4. SECTION C : FICHES D'ORDONNANCEMENT DE CET ASSUJETTI */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 pb-3">
-          <div>
-            <h2 className="text-base font-bold text-slate-900">
-              Fiches d&apos;Ordonnancement Établies ({fiches.length})
-            </h2>
-            <p className="text-xs text-slate-500">
-              Fiches d&apos;ordonnancement enregistrées et conservées ou transmises au Contrôle.
+      {!isServiceAssiette && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 pb-3">
+            <div>
+              <h2 className="text-base font-bold text-slate-900">
+                Fiches d&apos;Ordonnancement Établies ({fiches.length})
+              </h2>
+              <p className="text-xs text-slate-500">
+                Fiches d&apos;ordonnancement enregistrées et conservées ou transmises au Contrôle.
+              </p>
+            </div>
+            <Link
+              href="/recoupement/fiches-ordonnancement"
+              className="text-xs font-bold text-[#0a5db5] hover:underline"
+            >
+              Accéder au Registre Complet →
+            </Link>
+          </div>
+
+          {fiches.length === 0 ? (
+            <p className="text-center text-xs text-slate-400 py-6">
+              Aucune fiche d&apos;ordonnancement enregistrée pour cet assujetti pour le moment.
             </p>
-          </div>
-          <Link
-            href="/recoupement/fiches-ordonnancement"
-            className="text-xs font-bold text-[#0a5db5] hover:underline"
-          >
-            Accéder au Registre Complet →
-          </Link>
-        </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                  <tr>
+                    <th className="px-3 py-2.5">Numéro Fiche</th>
+                    <th className="px-3 py-2.5">Note de perception</th>
+                    <th className="px-3 py-2.5">Bureau compétent</th>
+                    <th className="px-3 py-2.5 text-right">Montants</th>
+                    <th className="px-3 py-2.5 text-center">Statut</th>
+                    <th className="px-3 py-2.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-700">
+                  {fiches.map((f) => {
+                    const isTransmise = f.statut_transmission === 'TRANSMIS_DIVISION_CONTROLE';
 
-        {fiches.length === 0 ? (
-          <p className="text-center text-xs text-slate-400 py-6">
-            Aucune fiche d&apos;ordonnancement enregistrée pour cet assujetti pour le moment.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-600">
-                <tr>
-                  <th className="px-3 py-2.5">Numéro Fiche</th>
-                  <th className="px-3 py-2.5">Note de perception</th>
-                  <th className="px-3 py-2.5">Bureau compétent</th>
-                  <th className="px-3 py-2.5 text-right">Montants</th>
-                  <th className="px-3 py-2.5 text-center">Statut</th>
-                  <th className="px-3 py-2.5 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700">
-                {fiches.map((f) => {
-                  const isTransmise = f.statut_transmission === 'TRANSMIS_DIVISION_CONTROLE';
-
-                  return (
-                    <tr key={f.id} className="hover:bg-slate-50/60 transition">
-                      <td className="px-3 py-2.5 font-medium">
-                        <span className="font-mono font-bold text-[#0a5db5]">{f.numero_fiche}</span>
-                        <p className="text-[10px] text-slate-400">Série : {f.numero_serie}</p>
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <p className="font-mono font-semibold">{f.numero_note_perception}</p>
-                        <p className="truncate max-w-[180px] text-[11px] text-slate-500">{f.acte_generateur}</p>
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <p className="font-medium text-slate-900">{f.bureaux?.nom || 'Bureau'}</p>
-                        <p className="text-[10px] text-slate-400">{f.secteurs?.nom}</p>
-                      </td>
-                      <td className="px-3 py-2.5 text-right font-mono">
-                        {f.montant_cdf > 0 && (
-                          <p className="font-semibold text-slate-900">
-                            {new Intl.NumberFormat('fr-CD').format(f.montant_cdf)} <span className="text-[10px] text-blue-700 font-sans font-bold">CDF</span>
-                          </p>
-                        )}
-                        {f.montant_usd > 0 && (
-                          <p className="font-semibold text-emerald-800">
-                            {new Intl.NumberFormat('fr-CD').format(f.montant_usd)} <span className="text-[10px] text-emerald-700 font-sans font-bold">USD</span>
-                          </p>
-                        )}
-                      </td>
-                      <td className="px-3 py-2.5 text-center">
-                        {isTransmise ? (
-                          <span className="inline-flex rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-700">
-                            Transmis Contrôle
-                          </span>
-                        ) : (
-                          <span className="inline-flex rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
-                            Conservée Bureau
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2.5 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {!isTransmise && isBureauAnalyse && (
-                            <button
-                              type="button"
-                              onClick={() => handleEnvoyerAuControle(f.id)}
-                              disabled={transmittingPending && transmittingId === f.id}
-                              className="rounded-lg bg-[#0a5db5] px-2.5 py-1 text-[11px] font-bold text-white hover:bg-[#093b78] transition disabled:opacity-50"
-                            >
-                              {transmittingPending && transmittingId === f.id ? 'Envoi...' : '📤 Envoyer au Contrôle'}
-                            </button>
+                    return (
+                      <tr key={f.id} className="hover:bg-slate-50/60 transition">
+                        <td className="px-3 py-2.5 font-medium">
+                          <span className="font-mono font-bold text-[#0a5db5]">{f.numero_fiche}</span>
+                          <p className="text-[10px] text-slate-400">Série : {f.numero_serie}</p>
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <p className="font-mono font-semibold">{f.numero_note_perception}</p>
+                          <p className="truncate max-w-[180px] text-[11px] text-slate-500">{f.acte_generateur}</p>
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <p className="font-medium text-slate-900">{f.bureaux?.nom || 'Bureau'}</p>
+                          <p className="text-[10px] text-slate-400">{f.secteurs?.nom}</p>
+                        </td>
+                        <td className="px-3 py-2.5 text-right font-mono">
+                          {f.montant_cdf > 0 && (
+                            <p className="font-semibold text-slate-900">
+                              {new Intl.NumberFormat('fr-CD').format(f.montant_cdf)} <span className="text-[10px] text-blue-700 font-sans font-bold">CDF</span>
+                            </p>
                           )}
-                          <Link
-                            href={`/recoupement/fiches-ordonnancement/${f.id}`}
-                            className="rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-200 transition"
-                          >
-                            Consulter →
-                          </Link>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                          {f.montant_usd > 0 && (
+                            <p className="font-semibold text-emerald-800">
+                              {new Intl.NumberFormat('fr-CD').format(f.montant_usd)} <span className="text-[10px] text-emerald-700 font-sans font-bold">USD</span>
+                            </p>
+                          )}
+                        </td>
+                        <td className="px-3 py-2.5 text-center">
+                          {isTransmise ? (
+                            <span className="inline-flex rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-700">
+                              Transmis Contrôle
+                            </span>
+                          ) : (
+                            <span className="inline-flex rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                              Conservée Bureau
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2.5 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {!isTransmise && isBureauAnalyse && (
+                              <button
+                                type="button"
+                                onClick={() => handleEnvoyerAuControle(f.id)}
+                                disabled={transmittingPending && transmittingId === f.id}
+                                className="rounded-lg bg-[#0a5db5] px-2.5 py-1 text-[11px] font-bold text-white hover:bg-[#093b78] transition disabled:opacity-50"
+                              >
+                                {transmittingPending && transmittingId === f.id ? 'Envoi...' : '📤 Envoyer au Contrôle'}
+                              </button>
+                            )}
+                            <Link
+                              href={`/recoupement/fiches-ordonnancement/${f.id}`}
+                              className="rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-200 transition"
+                            >
+                              Consulter →
+                            </Link>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 5. SECTION D : SYNTHÈSE DE RECOUPEMENT & HISTORIQUE */}
-      {synthese && (
+      {!isServiceAssiette && synthese && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {(['cdf', 'usd'] as const).map((dev) => {
             const d = synthese[dev];

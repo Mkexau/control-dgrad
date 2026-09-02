@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   description: 'Système de gestion du contrôle non fiscal de la DGRAD.',
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="fr"

@@ -51,6 +51,9 @@ export function ControleFicheClient({ fiche, currentUser }: Props) {
   const [situationExplicite, setSituationExplicite] = useState<StatutPaiementAssujetti | ''>(
     existingVerif?.statut_paiement === 'NON_DECLARE' ? 'NON_DECLARE' : ''
   );
+  const [penaliteApplicable, setPenaliteApplicable] = useState(
+    existingVerif?.penalite_applicable ?? false
+  );
 
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -67,14 +70,15 @@ export function ControleFicheClient({ fiche, currentUser }: Props) {
   const payCDF = Math.max(0, Number(montantPayeCDF) || 0);
   const payUSD = Math.max(0, Number(montantPayeUSD) || 0);
 
-  const dateEcheance = calculerDateEcheance(fiche.date_note_perception, fiche.delai_traitement_jours);
+  const dateEcheance = calculerDateEcheance(fiche.date_note_perception);
   const { joursRetard, estEnRetard } = calculerRetard(dateEcheance, datePaiement);
 
   const resteCDF = statutNote === 'ABSENTE' ? ordCDF : calculerResteDu(ordCDF, payCDF);
   const resteUSD = statutNote === 'ABSENTE' ? ordUSD : calculerResteDu(ordUSD, payUSD);
 
-  const penCDF = calculerPenalite(resteCDF);
-  const penUSD = calculerPenalite(resteUSD);
+  // La pénalité de retard (5 %) ne s'applique que si le paiement est en retard ET validé par l'agent.
+  const penCDF = penaliteApplicable && estEnRetard ? calculerPenalite(resteCDF) : 0;
+  const penUSD = penaliteApplicable && estEnRetard ? calculerPenalite(resteUSD) : 0;
 
   const totalExigibleCDF = calculerTotalDu(resteCDF, penCDF);
   const totalExigibleUSD = calculerTotalDu(resteUSD, penUSD);
@@ -102,6 +106,7 @@ export function ControleFicheClient({ fiche, currentUser }: Props) {
         montant_paye_cdf: payCDF,
         montant_paye_usd: payUSD,
         date_paiement: datePaiement || undefined,
+        penalite_applicable: penaliteApplicable,
         observations: observations || undefined,
         situation_explicite: situationExplicite || undefined,
       });
@@ -229,7 +234,7 @@ export function ControleFicheClient({ fiche, currentUser }: Props) {
               </div>
 
               <div className="flex justify-between border-b border-slate-50 pb-2">
-                <span className="text-slate-500">Date de la note :</span>
+                <span className="text-slate-500">Date d&apos;émission de la note :</span>
                 <span className="font-semibold text-slate-900">{fiche.date_note_perception}</span>
               </div>
 
@@ -423,7 +428,32 @@ export function ControleFicheClient({ fiche, currentUser }: Props) {
                 </div>
               </div>
 
-              {/* 4. SITUATION PARTICULIÈRE & OBSERVATIONS */}
+              {/* 4. PÉNALITÉ CONDITIONNELLE & SITUATION PARTICULIÈRE */}
+              <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-4 space-y-3">
+                <span className="font-bold text-amber-900 block text-xs">
+                  Pénalité conditionnelle
+                </span>
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    id="penalite-applicable"
+                    type="checkbox"
+                    checked={penaliteApplicable}
+                    onChange={(e) => setPenaliteApplicable(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-amber-400 text-amber-600 focus:ring-amber-500"
+                  />
+                  <span className="text-xs text-amber-900 leading-relaxed">
+                    <strong>Appliquer une pénalité sur le reste dû</strong>
+                    <br />
+                    <span className="text-amber-700 font-normal">
+                      Taux indicatif : 5 % du reste dû.
+                      Ce taux n&apos;est pas une règle juridique confirmée —
+                      n&apos;activer que si la pénalité est fondée et validée.
+                    </span>
+                  </span>
+                </label>
+              </div>
+
+              {/* 5. SITUATION PARTICULIÈRE & OBSERVATIONS */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">
@@ -526,10 +556,10 @@ export function ControleFicheClient({ fiche, currentUser }: Props) {
                           {fmtCDF(resteCDF)}
                         </span>
                       </div>
-                      {resteCDF > 0 && (
+                      {resteCDF > 0 && penaliteApplicable && (
                         <>
-                          <div className="flex justify-between text-red-600 font-semibold">
-                            <span>Pénalité légale (5 % du reste dû) :</span>
+                          <div className="flex justify-between text-amber-700 font-semibold">
+                            <span>Pénalité appliquée (5 % du reste dû) :</span>
                             <span>+ {fmtCDF(penCDF)}</span>
                           </div>
                           <div className="flex justify-between font-black text-slate-900 border-t border-slate-200 pt-1 text-sm">
@@ -561,10 +591,10 @@ export function ControleFicheClient({ fiche, currentUser }: Props) {
                           {fmtUSD(resteUSD)}
                         </span>
                       </div>
-                      {resteUSD > 0 && (
+                      {resteUSD > 0 && penaliteApplicable && (
                         <>
-                          <div className="flex justify-between text-red-600 font-semibold">
-                            <span>Pénalité légale (5 % du reste dû) :</span>
+                          <div className="flex justify-between text-amber-700 font-semibold">
+                            <span>Pénalité appliquée (5 % du reste dû) :</span>
                             <span>+ {fmtUSD(penUSD)}</span>
                           </div>
                           <div className="flex justify-between font-black text-slate-900 border-t border-slate-200 pt-1 text-sm">
