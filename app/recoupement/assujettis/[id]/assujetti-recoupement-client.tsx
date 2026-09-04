@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useTransition } from 'react';
+import React, { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import type { AssujettiItem, RecoupementSynthese } from '@/lib/recoupement/recoupement-service';
@@ -68,7 +68,9 @@ export function AssujettiRecoupementClient({
 }: Props) {
   const searchParams = useSearchParams();
   const [fiches, setFiches] = useState<FicheOrdonnancementItem[]>(initialFiches);
-  const [showFicheForm, setShowFicheForm] = useState(false);
+  const [showFicheForm, setShowFicheForm] = useState(
+    () => searchParams.get('mode') === 'preparer' && initialFiches.length === 0
+  );
   const [ficheFormData, setFicheFormData] = useState({
     numero_serie: `SERIE-${new Date().getFullYear()}`,
     delai_traitement_jours: 30,
@@ -83,10 +85,6 @@ export function AssujettiRecoupementClient({
   const [ficheFormError, setFicheFormError] = useState('');
   const [ficheFormSuccess, setFicheFormSuccess] = useState('');
   const [ficheFormPending, startFicheFormTransition] = useTransition();
-
-  useEffect(() => {
-    if (searchParams.get('mode') === 'preparer' && fiches.length === 0) setShowFicheForm(true);
-  }, [fiches.length, searchParams]);
 
   // Confirmation de transmission modal state
   const [transmittingFiche, setTransmittingFiche] = useState<FicheOrdonnancementItem | null>(null);

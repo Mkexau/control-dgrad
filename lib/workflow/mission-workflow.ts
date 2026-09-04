@@ -9,7 +9,7 @@ import type { MissionStatus, MissionType, ValidationType } from '@/lib/validatio
 // Matrice des transitions permises pour le Contrôle SUR PLACE
 export const SUR_PLACE_TRANSITIONS: Record<MissionStatus, MissionStatus[]> = {
   BROUILLON: ['SOUMISE', 'ANNULEE'],
-  SOUMISE: ['EXAMEN_CHEF_DIVISION', 'REJETEE', 'ANNULEE'],
+  SOUMISE: ['EXAMEN_CHEF_DIVISION', 'EXAMEN_DIRECTEUR_CONTROLES', 'REJETEE', 'ANNULEE'],
   EXAMEN_CHEF_DIVISION: ['EXAMEN_DIRECTEUR_CONTROLES', 'REJETEE', 'ANNULEE'],
   EXAMEN_DIRECTEUR_CONTROLES: ['ATTENTE_DG', 'REJETEE', 'ANNULEE'],
   ATTENTE_DG: ['APPROUVEE', 'REJETEE', 'ANNULEE'],
@@ -104,11 +104,11 @@ export function validateTransitionPermissions(
         throw new ForbiddenError('Vous ne pouvez soumettre une mission que pour votre propre Bureau de contrôle.');
       }
     } else if (nextStatus === 'EXAMEN_CHEF_DIVISION' || (currentStatus === 'SOUMISE' && nextStatus === 'EXAMEN_DIRECTEUR_CONTROLES')) {
-      if (user.role !== 'CHEF_DIVISION') {
+      if (user.role !== 'CHEF_DIVISION' || user.division_code !== 'DIV_CTRL') {
         throw new ForbiddenError('Seul le Chef de Division Contrôle peut instruire ce niveau d\'examen.');
       }
     } else if (currentStatus === 'EXAMEN_CHEF_DIVISION' && nextStatus === 'EXAMEN_DIRECTEUR_CONTROLES') {
-      if (user.role !== 'CHEF_DIVISION') {
+      if (user.role !== 'CHEF_DIVISION' || user.division_code !== 'DIV_CTRL') {
         throw new ForbiddenError('Seul le Chef de Division Contrôle peut transmettre au Directeur des Contrôles.');
       }
     } else if (nextStatus === 'ATTENTE_DG') {
@@ -138,6 +138,9 @@ export function validateTransitionPermissions(
     ) {
       if (user.role !== 'CHEF_BUREAU') {
         throw new ForbiddenError('Seul le Chef du bureau compétent peut approuver ou rejeter un contrôle sur pièces.');
+      }
+      if (!user.bureau_id || user.bureau_id !== missionBureauId) {
+        throw new ForbiddenError('Ce contrôle sur pièces ne relève pas de votre bureau.');
       }
     }
   }

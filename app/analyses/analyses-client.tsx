@@ -7,6 +7,7 @@ import {
 } from '@/app/actions/analyses';
 import type { AnalyseItem } from '@/lib/recoupement/recoupement-service';
 import { EmptyState } from '@/components/ui/institutional-state';
+import { Modal } from '@/components/ui/modal';
 
 interface Bureau {
   id: string;
@@ -207,45 +208,42 @@ export function AnalysesClient({ currentUser, availableBureaux, initialData }: P
       </div>
 
       {/* Modal création */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800">
-            <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
-              <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">Nouveau dossier d&apos;analyse</h2>
-              <button type="button" onClick={() => setShowModal(false)} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200">✕</button>
-            </div>
-            <form onSubmit={handleCreate} className="px-6 py-5 space-y-4">
-              {formError && <div className="p-3 text-sm text-red-700 bg-red-50 dark:bg-red-950/30 dark:text-red-300 rounded-lg border border-red-200 dark:border-red-800">{formError}</div>}
-              <div>
-                <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Bureau <span className="text-red-500">*</span></label>
-                <select
-                  value={formData.bureau_id}
-                  onChange={(e) => setFormData({ ...formData, bureau_id: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="">— Sélectionner —</option>
-                  {availableBureaux.map((b) => <option key={b.id} value={b.id}>{b.nom}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Observations initiales</label>
-                <textarea
-                  value={formData.observations}
-                  onChange={(e) => setFormData({ ...formData, observations: e.target.value })}
-                  rows={3}
-                  className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500 resize-none"
-                  maxLength={2000}
-                />
-              </div>
-              <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">Annuler</button>
-                <button type="submit" disabled={formPending} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs transition-colors disabled:opacity-60">{formPending ? 'Création…' : 'Créer'}</button>
-              </div>
-            </form>
+      <Modal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        title="Nouveau dossier d'analyse"
+        size="sm"
+      >
+        <form onSubmit={handleCreate} className="space-y-4">
+          {formError && <div className="p-3 text-sm text-red-700 bg-red-50 dark:bg-red-950/30 dark:text-red-300 rounded-lg border border-red-200 dark:border-red-800">{formError}</div>}
+          <div>
+            <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Bureau <span className="text-red-500">*</span></label>
+            <select
+              value={formData.bureau_id}
+              onChange={(e) => setFormData({ ...formData, bureau_id: e.target.value })}
+              className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+              required
+            >
+              <option value="">— Sélectionner —</option>
+              {availableBureaux.map((b) => <option key={b.id} value={b.id}>{b.nom}</option>)}
+            </select>
           </div>
-        </div>
-      )}
+          <div>
+            <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Observations initiales</label>
+            <textarea
+              value={formData.observations}
+              onChange={(e) => setFormData({ ...formData, observations: e.target.value })}
+              rows={3}
+              className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500 resize-none"
+              maxLength={2000}
+            />
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors cursor-pointer">Annuler</button>
+            <button type="submit" disabled={formPending} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs transition-colors disabled:opacity-60 cursor-pointer">{formPending ? 'Création…' : 'Créer'}</button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

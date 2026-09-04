@@ -11,9 +11,22 @@ import type { StatsFilterInput } from '@/lib/validations/stats';
 import { fetchDashboardMetrics } from '@/app/actions/stats';
 import type { RecoupementDashboardMetrics } from '@/lib/recoupement/ordonnancement-service';
 
+interface MissionEnAttente {
+  id: string;
+  reference: string;
+  statut: string;
+  type_controle: string;
+  motif?: string | null;
+  date_creation: string;
+  bureaux?: { id: string; code: string; nom: string }[] | { id: string; code: string; nom: string } | null;
+  secteurs?: { id: string; code: string; nom: string }[] | { id: string; code: string; nom: string } | null;
+  mission_assujettis?: { assujettis: { id: string; nom_raison_sociale: string } | { id: string; nom_raison_sociale: string }[] }[];
+}
+
 interface DashboardClientProps {
   initialMetrics: DashboardMetrics;
   recoupementMetrics?: RecoupementDashboardMetrics | null;
+  missionsEnAttente?: MissionEnAttente[];
   currentUser: {
     id: string;
     role: string;
@@ -30,10 +43,14 @@ interface DashboardClientProps {
 export function DashboardClient({
   initialMetrics,
   recoupementMetrics,
+  missionsEnAttente = [],
   currentUser,
   availableBureaux = [],
   availableSecteurs = [],
 }: DashboardClientProps) {
+  const isHierarchicalReviewer =
+    (currentUser.role === 'CHEF_DIVISION' && currentUser.division_code !== 'DIV_REC') ||
+    currentUser.role === 'DIRECTEUR_CONTROLES';
   const [metrics, setMetrics] = useState<DashboardMetrics>(initialMetrics);
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -303,31 +320,67 @@ export function DashboardClient({
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <Link
-              href="/missions/nouvelle"
-              className="px-3.5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-xs flex items-center gap-1.5"
-            >
-              <span>+ Nouvelle Mission</span>
-            </Link>
-            <Link
-              href="/missions"
-              className="px-3.5 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors"
-            >
-              Dossiers de Missions →
-            </Link>
-            <Link
-              href="/equipes"
-              className="px-3.5 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors"
-            >
-              Équipes de Terrain
-            </Link>
-            {currentUser.role === 'ADMIN' && (
-              <Link
-                href="/admin"
-                className="px-3.5 py-2 text-xs font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 rounded-lg hover:bg-purple-100 transition-colors"
-              >
-                Administration ⚙
-              </Link>
+            {isHierarchicalReviewer ? (
+              <>
+                <Link
+                  href="/missions"
+                  className="px-4 py-2.5 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition-colors shadow-xs flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  <span>Dossiers à examiner</span>
+                  {missionsEnAttente.length > 0 && (
+                    <span className="ml-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-white text-amber-700">
+                      {missionsEnAttente.length}
+                    </span>
+                  )}
+                </Link>
+                <Link
+                  href="/equipes"
+                  className="px-3.5 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors"
+                >
+                  Équipes de Terrain
+                </Link>
+                <Link
+                  href="/missions/nouvelle"
+                  className="px-3 py-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg transition-colors flex items-center gap-1"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Nouvelle Mission
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/missions/nouvelle"
+                  className="px-3.5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-xs flex items-center gap-1.5"
+                >
+                  <span>+ Nouvelle Mission</span>
+                </Link>
+                <Link
+                  href="/missions"
+                  className="px-3.5 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors"
+                >
+                  Dossiers de Missions →
+                </Link>
+                <Link
+                  href="/equipes"
+                  className="px-3.5 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors"
+                >
+                  Équipes de Terrain
+                </Link>
+                {currentUser.role === 'ADMIN' && (
+                  <Link
+                    href="/admin"
+                    className="px-3.5 py-2 text-xs font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 rounded-lg hover:bg-purple-100 transition-colors"
+                  >
+                    Administration ⚙
+                  </Link>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -349,6 +402,105 @@ export function DashboardClient({
           </span>
         </div>
       </div>
+
+      {/* SECTION PRIORITAIRE : DOSSIERS EN ATTENTE DE DÉCISION (Chef Division DIV_CTRL / Directeur Contrôles) */}
+      {isHierarchicalReviewer && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/60 dark:border-amber-800/60 dark:bg-amber-950/20 shadow-xs overflow-hidden">
+          {/* En-tête section */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-amber-200/70 dark:border-amber-800/50">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500 shadow-xs">
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-amber-900 dark:text-amber-100">
+                  Dossiers nécessitant votre décision
+                </h2>
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  {missionsEnAttente.length === 0
+                    ? 'Aucun dossier en attente — tableau de bord à jour.'
+                    : `${missionsEnAttente.length} dossier${missionsEnAttente.length > 1 ? 's' : ''} en attente d'instruction`}
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/missions"
+              className="text-xs font-semibold text-amber-700 hover:text-amber-900 dark:text-amber-300 dark:hover:text-amber-100 underline underline-offset-2"
+            >
+              Voir tous les dossiers →
+            </Link>
+          </div>
+
+          {/* Corps : tableau des dossiers */}
+          {missionsEnAttente.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-amber-200/70 dark:border-amber-800/50">
+                    <th className="px-5 py-3 text-left font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider">Référence</th>
+                    <th className="px-5 py-3 text-left font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider">Assujetti</th>
+                    <th className="px-5 py-3 text-left font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider">Bureau / Secteur</th>
+                    <th className="px-5 py-3 text-left font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider">Motif</th>
+                    <th className="px-5 py-3 text-left font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider">Soumis le</th>
+                    <th className="px-5 py-3 text-right font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-amber-100 dark:divide-amber-900/40">
+                  {missionsEnAttente.map((m) => {
+                    // Supabase peut retourner un objet ou un tableau selon la jointure
+                    const bureauItem = Array.isArray(m.bureaux) ? m.bureaux[0] : m.bureaux;
+                    const secteurItem = Array.isArray(m.secteurs) ? m.secteurs[0] : m.secteurs;
+                    const assujettisRaw = m.mission_assujettis?.[0]?.assujettis;
+                    const assujetti = Array.isArray(assujettisRaw) ? assujettisRaw[0] : assujettisRaw;
+                    return (
+                      <tr key={m.id} className="hover:bg-amber-100/60 dark:hover:bg-amber-900/20 transition-colors">
+                        <td className="px-5 py-3">
+                          <span className="font-mono font-bold text-amber-900 dark:text-amber-100">{m.reference}</span>
+                        </td>
+                        <td className="px-5 py-3 text-slate-800 dark:text-zinc-200 max-w-[180px] truncate">
+                          {assujetti?.nom_raison_sociale || <span className="italic text-slate-400">Non défini</span>}
+                        </td>
+                        <td className="px-5 py-3">
+                          <div className="font-mono font-semibold text-slate-700 dark:text-zinc-300">{bureauItem?.code || '-'}</div>
+                          {secteurItem?.nom && (
+                            <div className="text-slate-500 dark:text-zinc-400 text-[11px]">{secteurItem.nom}</div>
+                          )}
+                        </td>
+                        <td className="px-5 py-3 max-w-[200px]">
+                          <span className="text-slate-600 dark:text-zinc-400 line-clamp-2">{m.motif || '-'}</span>
+                        </td>
+                        <td className="px-5 py-3 text-slate-500 dark:text-zinc-400 whitespace-nowrap">
+                          {new Date(m.date_creation).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </td>
+                        <td className="px-5 py-3 text-right">
+                          <Link
+                            href={`/missions/${m.id}`}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-xs transition-colors"
+                          >
+                            Examiner le dossier
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="px-6 py-8 text-center text-sm text-amber-700 dark:text-amber-400">
+              <svg className="mx-auto mb-2 w-8 h-8 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Aucun dossier en attente de votre décision pour le moment.
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 2. BARRE DE FILTRES MULTI-CRITÈRES */}
       <form

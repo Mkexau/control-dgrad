@@ -8,6 +8,7 @@ import {
   transmettreFicheDivisionControleAction,
 } from '@/app/actions/recoupement-ordonnancement';
 import type { AssujettiItem, RecoupementSynthese } from '@/lib/recoupement/recoupement-service';
+import { Modal } from '@/components/ui/modal';
 
 const ROLES_ECRITURE = ['ANALYSTE', 'CHEF_BUREAU'];
 
@@ -705,100 +706,95 @@ export function AssujettiDetailClient({
       )}
 
       {/* MODAL MODIFICATION INFORMATIONS GÉNÉRALES DE L'ASSUJETTI */}
-      {showEditModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="font-bold text-slate-900 text-sm">Modifier les informations de l&apos;assujetti</h2>
-              <button type="button" onClick={() => setShowEditModal(false)} className="text-slate-400 hover:text-slate-700">✕</button>
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        title="Modifier les informations de l'assujetti"
+      >
+        <form onSubmit={handleUpdateAssujetti} className="space-y-4 text-xs">
+          {editError && (
+            <div className="p-3 text-red-700 bg-red-50 rounded-lg border border-red-200">
+              {editError}
             </div>
+          )}
 
-            <form onSubmit={handleUpdateAssujetti} className="px-6 py-5 space-y-4 text-xs">
-              {editError && (
-                <div className="p-3 text-red-700 bg-red-50 rounded-lg border border-red-200">
-                  {editError}
-                </div>
-              )}
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Raison sociale / Nom <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={editFormData.nom_raison_sociale}
-                  onChange={(e) => setEditFormData({ ...editFormData, nom_raison_sociale: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
-                  required
-                  minLength={2}
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Secteur d&apos;activité principal</label>
-                <select
-                  value={editFormData.secteur_principal_id}
-                  onChange={(e) => setEditFormData({ ...editFormData, secteur_principal_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">— Non rattaché —</option>
-                  {availableSecteurs.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.nom} ({s.code})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Adresse</label>
-                <textarea
-                  value={editFormData.adresse}
-                  onChange={(e) => setEditFormData({ ...editFormData, adresse: e.target.value })}
-                  rows={2}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500 resize-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Email</label>
-                  <input
-                    type="email"
-                    value={editFormData.email}
-                    onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Téléphone</label>
-                  <input
-                    type="tel"
-                    value={editFormData.telephone}
-                    onChange={(e) => setEditFormData({ ...editFormData, telephone: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowEditModal(false)}
-                  className="px-4 py-2 font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="submit"
-                  disabled={editPending}
-                  className="px-4 py-2 font-bold text-white bg-[#0a5db5] hover:bg-[#093b78] rounded-lg shadow-xs transition disabled:opacity-60"
-                >
-                  {editPending ? 'Enregistrement…' : 'Enregistrer'}
-                </button>
-              </div>
-            </form>
+          <div>
+            <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Raison sociale / Nom <span className="text-red-500">*</span></label>
+            <input
+              type="text"
+              value={editFormData.nom_raison_sociale}
+              onChange={(e) => setEditFormData({ ...editFormData, nom_raison_sociale: e.target.value })}
+              className="w-full px-3 py-2 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-lg text-slate-900 dark:text-zinc-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+              required
+              minLength={2}
+            />
           </div>
-        </div>
-      )}
+
+          <div>
+            <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Secteur d&apos;activité principal</label>
+            <select
+              value={editFormData.secteur_principal_id}
+              onChange={(e) => setEditFormData({ ...editFormData, secteur_principal_id: e.target.value })}
+              className="w-full px-3 py-2 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-lg text-slate-900 dark:text-zinc-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">— Non rattaché —</option>
+              {availableSecteurs.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.nom} ({s.code})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Adresse</label>
+            <textarea
+              value={editFormData.adresse}
+              onChange={(e) => setEditFormData({ ...editFormData, adresse: e.target.value })}
+              rows={2}
+              className="w-full px-3 py-2 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-lg text-slate-900 dark:text-zinc-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500 resize-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Email</label>
+              <input
+                type="email"
+                value={editFormData.email}
+                onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                className="w-full px-3 py-2 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-lg text-slate-900 dark:text-zinc-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1">Téléphone</label>
+              <input
+                type="tel"
+                value={editFormData.telephone}
+                onChange={(e) => setEditFormData({ ...editFormData, telephone: e.target.value })}
+                className="w-full px-3 py-2 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-lg text-slate-900 dark:text-zinc-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setShowEditModal(false)}
+              className="px-4 py-2 font-medium text-slate-700 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-800 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 transition cursor-pointer"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={editPending}
+              className="px-4 py-2 font-bold text-white bg-[#0a5db5] hover:bg-[#093b78] rounded-lg shadow-xs transition disabled:opacity-60 cursor-pointer"
+            >
+              {editPending ? 'Enregistrement…' : 'Enregistrer'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

@@ -27,7 +27,6 @@ const navigationGeneral: NavItem[] = [
   { href: '/missions', label: 'Missions', icon: '◇' },
   { href: '/equipes', label: 'Équipes', icon: '◌' },
   { href: '/assujettis', label: 'Assujettis', icon: '◈' },
-  { href: '/analyses', label: 'Analyses', icon: '◫' },
 ];
 
 // Navigation groupée BUR_ANA_REC
@@ -47,9 +46,7 @@ const navigationRecoupementGroups: NavGroup[] = [
   {
     title: 'Ordonnancement',
     items: [
-      { href: '/recoupement/assujettis?filtre=SANS_FICHE', label: 'Fiches à préparer', icon: '📝' },
-      { href: '/recoupement/fiches-ordonnancement?statut_transmission=CONSERVEE_BUREAU', label: 'Fiches à transmettre', icon: '📋' },
-      { href: '/recoupement/fiches-ordonnancement?statut_transmission=TRANSMIS_DIVISION_CONTROLE', label: 'Fiches transmises', icon: '📤' },
+      { href: '/recoupement/fiches-ordonnancement', label: "Fiches d'ordonnancement", icon: '📝' },
     ],
   },
 ];

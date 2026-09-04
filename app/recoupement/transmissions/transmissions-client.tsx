@@ -20,7 +20,7 @@ interface Props {
   };
 }
 
-export function TransmissionsClient({ initialData, initialSearch, currentUser: _currentUser }: Props) {
+export function TransmissionsClient({ initialData, initialSearch }: Props) {
   const [data, setData] = useState(initialData);
   const [search, setSearch] = useState(initialSearch);
   const [isPending, startTransition] = useTransition();

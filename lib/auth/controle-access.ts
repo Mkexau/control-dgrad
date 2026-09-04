@@ -116,6 +116,7 @@ export interface MissionRapportScope {
   statut: string;
   bureau_id: string;
   equipes_chefs_ids?: string[];
+  equipes_agents_ids?: string[];
   controleurs_ids?: string[];
 }
 
@@ -184,6 +185,15 @@ export function assertCanReadMissionDossier(
     return authenticatedUser;
   }
 
+  // Le Chef de Division Contrôle instruit les dossiers SUR_PLACE de sa division.
+  if (
+    authenticatedUser.role === 'CHEF_DIVISION' &&
+    authenticatedUser.division_code === 'DIV_CTRL' &&
+    mission.type_controle === 'SUR_PLACE'
+  ) {
+    return authenticatedUser;
+  }
+
   if (
     ['CHEF_BUREAU', 'ANALYSTE', 'CONSULTATION'].includes(authenticatedUser.role) &&
     authenticatedUser.bureau_id === mission.bureau_id
@@ -207,7 +217,12 @@ export function assertCanReadMissionDossier(
     ) {
       return authenticatedUser;
     }
-    if (authenticatedUser.role === 'CONTROLEUR' && authenticatedUser.bureau_id === mission.bureau_id) {
+    if (
+      authenticatedUser.role === 'CONTROLEUR' &&
+      authenticatedUser.bureau_id === mission.bureau_id &&
+      userAgentId &&
+      mission.equipes_agents_ids?.includes(userAgentId)
+    ) {
       return authenticatedUser;
     }
   }

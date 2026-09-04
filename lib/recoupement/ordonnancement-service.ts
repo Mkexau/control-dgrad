@@ -721,7 +721,20 @@ export async function getFichesOrdonnancement(
   }
   if (parsed.search) {
     const term = `%${parsed.search}%`;
-    query = query.or(`numero_fiche.ilike.${term},numero_note_perception.ilike.${term},numero_serie.ilike.${term}`);
+    const { data: matchingAssujettis, error: assujettisError } = await supabase
+      .from('assujettis')
+      .select('id')
+      .or(`identifiant.ilike.${term},nom_raison_sociale.ilike.${term}`);
+
+    if (assujettisError) {
+      throw new Error(`Erreur lors de la recherche des assujettis : ${assujettisError.message}`);
+    }
+
+    const matchingIds = (matchingAssujettis || []).map((assujetti) => assujetti.id);
+    const ficheSearch = `numero_fiche.ilike.${term},numero_note_perception.ilike.${term},numero_serie.ilike.${term}`;
+    query = matchingIds.length
+      ? query.or(`${ficheSearch},assujetti_id.in.(${matchingIds.join(',')})`)
+      : query.or(ficheSearch);
   }
 
   const offset = (parsed.page - 1) * parsed.limit;
@@ -923,6 +936,48 @@ export async function transmettreFichesDivisionControle(user: CurrentUser, fiche
     newData: { statut_transmission: 'TRANSMIS_DIVISION_CONTROLE', date_transmission_division: dateTransmission, transmis_par: user.id },
   })));
   return { transmittedIds: updated.map((fiche) => fiche.id), count: updated.length };
+}
+
+/**
+ * Transmet toutes les fiches encore conservées par BUR_ANA_REC.
+ * Les fiches à traiter sont recherchées côté serveur afin que cette opération
+ * couvre le périmètre complet, indépendamment de la pagination affichée.
+ */
+export async function transmettreToutesFichesDivisionControle(user: CurrentUser) {
+  assertCanManageRecoupementBureau(user);
+  const supabase = createAdminClient();
+  const dateTransmission = new Date().toISOString();
+
+  const { data: updated, error } = await supabase
+    .from('fiches_ordonnancement')
+    .update({
+      statut_transmission: 'TRANSMIS_DIVISION_CONTROLE',
+      date_transmission_division: dateTransmission,
+      transmis_par: user.id,
+      updated_at: dateTransmission,
+    })
+    .eq('statut_transmission', 'CONSERVEE_BUREAU')
+    .select('id');
+
+  if (error) {
+    throw new Error(`Erreur lors de la transmission globale : ${error.message}`);
+  }
+
+  await Promise.all((updated || []).map((fiche) => logAuditEvent({
+    userId: user.id,
+    action: 'TRANSMISSION',
+    entityType: 'fiche_ordonnancement',
+    entityId: fiche.id,
+    oldData: { statut_transmission: 'CONSERVEE_BUREAU' },
+    newData: {
+      statut_transmission: 'TRANSMIS_DIVISION_CONTROLE',
+      date_transmission_division: dateTransmission,
+      transmis_par: user.id,
+      mode: 'TOUTES_LES_FICHES_NON_TRANSMISES',
+    },
+  })));
+
+  return { transmittedIds: (updated || []).map((fiche) => fiche.id), count: updated?.length || 0 };
 }
 
 // -----------------------------------------------------------------------------

@@ -8,6 +8,7 @@ import {
   transitionAnalyseAction,
 } from '@/app/actions/analyses';
 import type { AnalyseItem, AssujettiItem } from '@/lib/recoupement/recoupement-service';
+import { Modal } from '@/components/ui/modal';
 
 interface CurrentUser {
   id: string;
@@ -263,79 +264,75 @@ export function AnalyseDetailClient({ analyse: initialAnalyse, availableAssujett
       </div>
 
       {/* Modal ajout assujetti */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="w-full max-w-lg bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800">
-            <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
-              <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">Ajouter un assujetti</h2>
-              <button type="button" onClick={() => setShowAddModal(false)} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200">✕</button>
-            </div>
-            <form onSubmit={handleAddAssujetti} className="px-6 py-5 space-y-4">
-              {addError && <div className="p-3 text-sm text-red-700 bg-red-50 dark:bg-red-950/30 dark:text-red-300 rounded-lg">{addError}</div>}
+      <Modal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        title="Ajouter un assujetti"
+      >
+        <form onSubmit={handleAddAssujetti} className="space-y-4">
+          {addError && <div className="p-3 text-sm text-red-700 bg-red-50 dark:bg-red-950/30 dark:text-red-300 rounded-lg">{addError}</div>}
 
-              <div>
-                <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Assujetti <span className="text-red-500">*</span></label>
-                <select
-                  value={addForm.assujetti_id}
-                  onChange={(e) => setAddForm({ ...addForm, assujetti_id: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="">— Sélectionner —</option>
-                  {availableToAdd.map((a) => (
-                    <option key={a.id} value={a.id}>{a.nom_raison_sociale} ({a.identifiant})</option>
-                  ))}
-                </select>
-                {availableToAdd.length === 0 && <p className="text-xs text-zinc-500 mt-1">Tous les assujettis de votre périmètre sont déjà ajoutés.</p>}
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Devise <span className="text-red-500">*</span></label>
-                <select
-                  value={addForm.devise}
-                  onChange={(e) => setAddForm({ ...addForm, devise: e.target.value as 'CDF' | 'USD' })}
-                  className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="CDF">CDF</option>
-                  <option value="USD">USD</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Montant dû</label>
-                  <input type="number" min={0} step="0.01" value={addForm.montant_du} onChange={(e) => setAddForm({ ...addForm, montant_du: e.target.value })} className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Montant payé</label>
-                  <input type="number" min={0} step="0.01" value={addForm.montant_paye} onChange={(e) => setAddForm({ ...addForm, montant_paye: e.target.value })} className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Manque à gagner</label>
-                  <input type="number" min={0} step="0.01" value={addForm.manque_a_gagner} onChange={(e) => setAddForm({ ...addForm, manque_a_gagner: e.target.value })} className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Priorité</label>
-                  <select value={addForm.priorite} onChange={(e) => setAddForm({ ...addForm, priorite: e.target.value as '' | 'HAUTE' | 'MOYENNE' | 'BASSE' })} className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500">
-                    <option value="">— Non définie —</option>
-                    <option value="HAUTE">Haute</option>
-                    <option value="MOYENNE">Moyenne</option>
-                    <option value="BASSE">Basse</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">Annuler</button>
-                <button type="submit" disabled={addPending} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs transition-colors disabled:opacity-60">{addPending ? 'Ajout…' : 'Ajouter'}</button>
-              </div>
-            </form>
+          <div>
+            <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Assujetti <span className="text-red-500">*</span></label>
+            <select
+              value={addForm.assujetti_id}
+              onChange={(e) => setAddForm({ ...addForm, assujetti_id: e.target.value })}
+              className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+              required
+            >
+              <option value="">— Sélectionner —</option>
+              {availableToAdd.map((a) => (
+                <option key={a.id} value={a.id}>{a.nom_raison_sociale} ({a.identifiant})</option>
+              ))}
+            </select>
+            {availableToAdd.length === 0 && <p className="text-xs text-zinc-500 mt-1">Tous les assujettis de votre périmètre sont déjà ajoutés.</p>}
           </div>
-        </div>
-      )}
+
+          <div>
+            <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Devise <span className="text-red-500">*</span></label>
+            <select
+              value={addForm.devise}
+              onChange={(e) => setAddForm({ ...addForm, devise: e.target.value as 'CDF' | 'USD' })}
+              className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="CDF">CDF</option>
+              <option value="USD">USD</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Montant dû</label>
+              <input type="number" min={0} step="0.01" value={addForm.montant_du} onChange={(e) => setAddForm({ ...addForm, montant_du: e.target.value })} className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Montant payé</label>
+              <input type="number" min={0} step="0.01" value={addForm.montant_paye} onChange={(e) => setAddForm({ ...addForm, montant_paye: e.target.value })} className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Manque à gagner</label>
+              <input type="number" min={0} step="0.01" value={addForm.manque_a_gagner} onChange={(e) => setAddForm({ ...addForm, manque_a_gagner: e.target.value })} className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">Priorité</label>
+              <select value={addForm.priorite} onChange={(e) => setAddForm({ ...addForm, priorite: e.target.value as '' | 'HAUTE' | 'MOYENNE' | 'BASSE' })} className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500">
+                <option value="">— Non définie —</option>
+                <option value="HAUTE">Haute</option>
+                <option value="MOYENNE">Moyenne</option>
+                <option value="BASSE">Basse</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors cursor-pointer">Annuler</button>
+            <button type="submit" disabled={addPending} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs transition-colors disabled:opacity-60 cursor-pointer">{addPending ? 'Ajout…' : 'Ajouter'}</button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

@@ -98,6 +98,9 @@ export default async function MissionDetailPage({
   const equipesChefsIds = ((mission.equipes as unknown as { chef_equipe_id: string }[]) || []).map(
     (e) => e.chef_equipe_id
   );
+  const equipesAgentsIds = ((mission.equipes as unknown as { equipe_agents?: { agents?: { id: string } | null }[] }[]) || [])
+    .flatMap((e) => (e.equipe_agents || []).map((membre) => membre.agents?.id))
+    .filter((id): id is string => Boolean(id));
   const controleursIds = ((mission.controles as unknown as { controleur_responsable_id: string }[]) || [])
     .map((c) => c.controleur_responsable_id)
     .filter(Boolean);
@@ -108,6 +111,7 @@ export default async function MissionDetailPage({
     statut: mission.statut,
     bureau_id: mission.bureau_id,
     equipes_chefs_ids: equipesChefsIds,
+    equipes_agents_ids: equipesAgentsIds,
     controleurs_ids: controleursIds,
   };
 

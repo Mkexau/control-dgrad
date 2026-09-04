@@ -6,6 +6,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { MissionStatus, MissionType } from '@/lib/validations/missions';
 import { MissionStatusBadge, MissionTypeBadge } from '@/components/missions/mission-badges';
 import { WorkflowTimeline, type ValidationRecord } from '@/components/missions/workflow-timeline';
@@ -158,9 +159,17 @@ export function MissionDetailClient({
   auditLogs = [],
   availableControleurs = [],
 }: MissionDetailClientProps) {
+  const router = useRouter();
   const [activeModal, setActiveModal] = useState<
     'EXAMEN_DIVISION' | 'EXAMEN_DIRECTEUR' | 'DECISION_DG' | 'DECISION_CHEF_BUREAU' | null
   >(null);
+
+  const missionContext = {
+    reference: mission.reference,
+    assujettiNom: mission.mission_assujettis?.[0]?.assujettis?.nom_raison_sociale || 'Assujetti non spécifié',
+    bureauCode: mission.bureaux?.code,
+    secteurNom: mission.secteurs?.nom || mission.secteurs?.code,
+  };
 
   const [selectedControleurId, setSelectedControleurId] = useState<string>(
     availableControleurs[0]?.id || ''
@@ -958,8 +967,10 @@ export function MissionDetailClient({
       <ValidationModal
         isOpen={activeModal === 'EXAMEN_DIVISION'}
         onClose={() => setActiveModal(null)}
-        title="Instruction Chef de Division Contrôle"
+        title="Examiner le dossier (Chef de Division)"
         description="Vérifiez la conformité de la proposition et transmettez-la au Directeur des Contrôles ou rejetez-la avec motif."
+        missionContext={missionContext}
+        roleAction="CHEF_DIVISION"
         onConfirm={async (decision, motif, commentaire) => {
           const res = await examineDivision({
             mission_id: mission.id,
@@ -969,7 +980,12 @@ export function MissionDetailClient({
           });
           if (res.success) {
             setActiveModal(null);
-            window.location.reload();
+            setActionSuccess(
+              decision === 'APPROUVE'
+                ? 'Dossier instruit et transmis avec succès au Directeur des Contrôles.'
+                : 'Dossier rejeté et retourné au Bureau avec motif.'
+            );
+            router.refresh();
           } else {
             throw new Error(res.error);
           }
@@ -979,8 +995,10 @@ export function MissionDetailClient({
       <ValidationModal
         isOpen={activeModal === 'EXAMEN_DIRECTEUR'}
         onClose={() => setActiveModal(null)}
-        title="Instruction Directeur des Contrôles & Recoupements"
+        title="Examiner le dossier (Directeur des Contrôles)"
         description="Transmettez le dossier instruit au Directeur Général pour décision finale ou rejetez-le avec motif."
+        missionContext={missionContext}
+        roleAction="DIRECTEUR_CONTROLES"
         onConfirm={async (decision, motif, commentaire) => {
           const res = await examineDirecteur({
             mission_id: mission.id,
@@ -990,7 +1008,12 @@ export function MissionDetailClient({
           });
           if (res.success) {
             setActiveModal(null);
-            window.location.reload();
+            setActionSuccess(
+              decision === 'APPROUVE'
+                ? 'Dossier instruit et transmis avec succès au Directeur Général.'
+                : 'Dossier rejeté et retourné avec motif.'
+            );
+            router.refresh();
           } else {
             throw new Error(res.error);
           }
@@ -1002,6 +1025,8 @@ export function MissionDetailClient({
         onClose={() => setActiveModal(null)}
         title="Décision du Directeur Général de la DGRAD"
         description="L'approbation confirme les équipes proposées et génère automatiquement l'ordre de mission officiel."
+        missionContext={missionContext}
+        roleAction="DIRECTEUR_GENERAL"
         onConfirm={async (decision, motif, commentaire) => {
           const res = await decideDG({
             mission_id: mission.id,
@@ -1011,7 +1036,12 @@ export function MissionDetailClient({
           });
           if (res.success) {
             setActiveModal(null);
-            window.location.reload();
+            setActionSuccess(
+              decision === 'APPROUVE'
+                ? 'Mission approuvée avec succès. Ordre de mission officiel généré.'
+                : 'Mission rejetée avec motif.'
+            );
+            router.refresh();
           } else {
             throw new Error(res.error);
           }
@@ -1023,6 +1053,8 @@ export function MissionDetailClient({
         onClose={() => setActiveModal(null)}
         title="Décision du Chef de Bureau"
         description="L'approbation génère automatiquement l'autorisation officielle de contrôle sur pièces."
+        missionContext={missionContext}
+        roleAction="CHEF_BUREAU"
         onConfirm={async (decision, motif, commentaire) => {
           const res = await decideChefBureau({
             mission_id: mission.id,
@@ -1032,7 +1064,12 @@ export function MissionDetailClient({
           });
           if (res.success) {
             setActiveModal(null);
-            window.location.reload();
+            setActionSuccess(
+              decision === 'APPROUVE'
+                ? 'Contrôle sur pièces approuvé avec succès. Autorisation officielle générée.'
+                : 'Demande de contrôle rejetée avec motif.'
+            );
+            router.refresh();
           } else {
             throw new Error(res.error);
           }

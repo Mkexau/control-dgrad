@@ -33,6 +33,7 @@ import {
   getFicheOrdonnancementById,
   transmettreFicheDivisionControle,
   transmettreFichesDivisionControle,
+  transmettreToutesFichesDivisionControle,
   getRecoupementDashboardMetrics,
   type InformationRecueItem,
   type FicheOrdonnancementItem,
@@ -311,6 +312,22 @@ export async function transmettreFichesDivisionControleAction(ficheIds: string[]
     return { success: true, data: result };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Erreur lors de la transmission des fiches.' };
+  }
+}
+
+/** Transmet côté serveur toutes les fiches encore non transmises du périmètre BUR_ANA_REC. */
+export async function transmettreToutesFichesDivisionControleAction(): Promise<ActionResponse<{ transmittedIds: string[]; count: number }>> {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, error: 'Session expirée ou utilisateur non connecté.' };
+    const result = await transmettreToutesFichesDivisionControle(user);
+    revalidatePath('/recoupement/assujettis');
+    revalidatePath('/recoupement/fiches-ordonnancement');
+    revalidatePath('/recoupement/transmissions');
+    revalidatePath('/dashboard');
+    return { success: true, data: result };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Erreur lors de la transmission globale des fiches.' };
   }
 }
 

@@ -46,19 +46,53 @@ export default async function DashboardPage() {
     secteursQuery = secteursQuery.eq('bureau_id', currentUser.bureau_id);
   }
 
+  const isRecoupement =
+    currentUser.bureau_code === 'BUR_ANA_REC' ||
+    (currentUser.role === 'CHEF_DIVISION' && currentUser.division_code === 'DIV_REC');
+
+  // 2. Missions en attente de décision pour les rôles de validation hiérarchique
+  const isHierarchicalReviewer =
+    (currentUser.role === 'CHEF_DIVISION' && !isRecoupement) ||
+    currentUser.role === 'DIRECTEUR_CONTROLES';
+
+  let missionsEnAttenteQuery = null;
+  if (isHierarchicalReviewer) {
+    const statusFilter =
+      currentUser.role === 'CHEF_DIVISION'
+        ? ['SOUMISE', 'EXAMEN_CHEF_DIVISION']
+        : ['EXAMEN_DIRECTEUR_CONTROLES'];
+
+    missionsEnAttenteQuery = supabase
+      .from('missions')
+      .select(`
+        id,
+        reference,
+        statut,
+        type_controle,
+        motif,
+        date_creation,
+        bureaux:bureau_id(id, code, nom),
+        secteurs:secteur_id(id, code, nom),
+        mission_assujettis(
+          assujettis(id, nom_raison_sociale)
+        )
+      `)
+      .eq('type_controle', 'SUR_PLACE')
+      .in('statut', statusFilter)
+      .order('date_creation', { ascending: true })
+      .limit(20);
+  }
+
   const [{ data: bureaux }, { data: secteurs }] = await Promise.all([
     bureauxQuery,
     secteursQuery,
   ]);
 
-  const isRecoupement =
-    currentUser.bureau_code === 'BUR_ANA_REC' ||
-    (currentUser.role === 'CHEF_DIVISION' && currentUser.division_code === 'DIV_REC');
-
-  // 2. Récupération initiale des métriques
-  const [initialMetrics, recoupementMetrics] = await Promise.all([
+  // 3. Récupération initiale des métriques + missions en attente
+  const [initialMetrics, recoupementMetrics, missionsEnAttenteResult] = await Promise.all([
     getDashboardMetrics(currentUser, {}),
     isRecoupement ? import('@/lib/recoupement/ordonnancement-service').then(m => m.getRecoupementDashboardMetrics(currentUser)) : Promise.resolve(null),
+    missionsEnAttenteQuery ? missionsEnAttenteQuery : Promise.resolve({ data: null }),
   ]);
 
   return (
@@ -66,6 +100,7 @@ export default async function DashboardPage() {
       <DashboardClient
         initialMetrics={initialMetrics}
         recoupementMetrics={recoupementMetrics}
+        missionsEnAttente={missionsEnAttenteResult.data || []}
         currentUser={{
           id: currentUser.id,
           role: currentUser.role,

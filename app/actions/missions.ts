@@ -8,6 +8,7 @@ import { revalidatePath } from 'next/cache';
 import { requireAuthenticatedUser } from '@/lib/auth/guards';
 import { createAdminClient } from '@/lib/supabase/server';
 import { logAuditEvent } from '@/lib/audit/audit-service';
+import { assertCanReadMissionDossier, type MissionRapportScope } from '@/lib/auth/controle-access';
 import {
   MissionCreateSchema,
   MissionSubmitSchema,
@@ -823,6 +824,16 @@ export async function designateControleur(
       return { success: false, error: 'Mission introuvable ou non compatible avec le parcours SUR_PIECES.' };
     }
 
+    const { data: controleur } = await adminSupabase
+      .from('profiles')
+      .select('id, role, bureau_id, actif')
+      .eq('id', parsed.data.controleur_id)
+      .maybeSingle();
+
+    if (!controleur || !controleur.actif || controleur.role !== 'CONTROLEUR' || controleur.bureau_id !== mission.bureau_id) {
+      return { success: false, error: 'Le contrôleur désigné doit être actif, avoir le rôle CONTROLEUR et relever du bureau compétent.' };
+    }
+
     validateTransitionPermissions(
       currentUser,
       mission.statut as MissionStatus,
@@ -949,7 +960,57 @@ export async function resetRejectedMission(
 export async function getMissionDocumentDownloadUrl(
   input: { storage_path: string; mission_id: string }
 ): Promise<ActionResponse<{ url: string }>> {
-  await requireAuthenticatedUser();
+  const currentUser = await requireAuthenticatedUser();
+  const adminSupabase = createAdminClient();
+
+  const { data: mission } = await adminSupabase
+    .from('missions')
+    .select(`
+      id, type_controle, statut, bureau_id,
+      equipes(chef_equipe_id, equipe_agents(agents(id))),
+      controles(controleur_responsable_id)
+    `)
+    .eq('id', input.mission_id)
+    .maybeSingle();
+
+  if (!mission) {
+    return { success: false, error: 'Mission introuvable ou accès non autorisé.' };
+  }
+
+  const { data: userAgent } = await adminSupabase
+    .from('agents')
+    .select('id')
+    .eq('profile_id', currentUser.id)
+    .maybeSingle();
+
+  const equipes = (mission.equipes as unknown as { chef_equipe_id: string; equipe_agents?: { agents?: { id: string } | null }[] }[]) || [];
+  const scope: MissionRapportScope = {
+    id: mission.id,
+    type_controle: mission.type_controle,
+    statut: mission.statut,
+    bureau_id: mission.bureau_id,
+    equipes_chefs_ids: equipes.map((equipe) => equipe.chef_equipe_id),
+    equipes_agents_ids: equipes.flatMap((equipe) => (equipe.equipe_agents || []).map((membre) => membre.agents?.id)).filter((id): id is string => Boolean(id)),
+    controleurs_ids: ((mission.controles as unknown as { controleur_responsable_id: string | null }[]) || []).map((controle) => controle.controleur_responsable_id).filter((id): id is string => Boolean(id)),
+  };
+
+  try {
+    assertCanReadMissionDossier(currentUser, scope, userAgent?.id || null);
+  } catch {
+    return { success: false, error: 'Mission introuvable ou accès non autorisé.' };
+  }
+
+  const { data: document } = await adminSupabase
+    .from('documents')
+    .select('id')
+    .eq('entity_type', 'missions')
+    .eq('entity_id', mission.id)
+    .eq('storage_path', input.storage_path)
+    .maybeSingle();
+
+  if (!document) {
+    return { success: false, error: 'Document introuvable ou accès non autorisé.' };
+  }
 
   const res = await getSignedDocumentUrl(input.storage_path, 300);
   if (res.error || !res.url) {

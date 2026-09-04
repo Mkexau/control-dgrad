@@ -7,15 +7,19 @@ import {
   fetchFichesOrdonnancementAction,
   transmettreFicheDivisionControleAction,
   transmettreFichesDivisionControleAction,
+  transmettreToutesFichesDivisionControleAction,
 } from '@/app/actions/recoupement-ordonnancement';
 import { EmptyState } from '@/components/ui/institutional-state';
 
 interface Props {
   initialData: { fiches: FicheOrdonnancementItem[]; total: number };
   availableBureaux: { id: string; code: string; nom: string }[];
+  availableSecteurs: { id: string; code: string; nom: string; bureau_id: string }[];
+  counts: { nonTransmises: number; transmises: number };
   initialStatutTransmission: string;
   initialSearch: string;
   initialBureauId: string;
+  initialSecteurId: string;
   currentUser: {
     id: string;
     role: string;
@@ -30,15 +34,20 @@ interface Props {
 export function FichesClient({
   initialData,
   availableBureaux = [],
+  availableSecteurs = [],
+  counts: initialCounts,
   initialStatutTransmission,
   initialSearch,
   initialBureauId,
+  initialSecteurId,
   currentUser,
 }: Props) {
   const [data, setData] = useState(initialData);
   const [statutTransmission, setStatutTransmission] = useState(initialStatutTransmission);
   const [search, setSearch] = useState(initialSearch);
   const [bureauId, setBureauId] = useState(initialBureauId);
+  const [secteurId, setSecteurId] = useState(initialSecteurId);
+  const [counts, setCounts] = useState(initialCounts);
   const [isPending, startTransition] = useTransition();
   const [transmittingId, setTransmittingId] = useState<string | null>(null);
   const [isTransmitting, startTransmitting] = useTransition();
@@ -57,6 +66,7 @@ export function FichesClient({
       const res = await fetchFichesOrdonnancementAction({
         statut_transmission: (statutTransmission as 'CONSERVEE_BUREAU' | 'TRANSMIS_DIVISION_CONTROLE') || undefined,
         bureau_id: bureauId || undefined,
+        secteur_id: secteurId || undefined,
         search: search || undefined,
         page: 1,
         limit: 20,
@@ -68,11 +78,12 @@ export function FichesClient({
   };
 
   const handleReset = () => {
-    setStatutTransmission('');
+    setStatutTransmission('CONSERVEE_BUREAU');
     setSearch('');
     setBureauId('');
+    setSecteurId('');
     startTransition(async () => {
-      const res = await fetchFichesOrdonnancementAction({ page: 1, limit: 20 });
+      const res = await fetchFichesOrdonnancementAction({ statut_transmission: 'CONSERVEE_BUREAU', page: 1, limit: 20 });
       if (res.success && res.data) {
         setData(res.data);
       }
@@ -84,6 +95,10 @@ export function FichesClient({
     startTransmitting(async () => {
       const res = await transmettreFicheDivisionControleAction(ficheId);
       if (res.success && res.data) {
+        setCounts((previous) => ({
+          nonTransmises: Math.max(0, previous.nonTransmises - 1),
+          transmises: previous.transmises + 1,
+        }));
         setData((prev) => ({
           ...prev,
           fiches: prev.fiches.map((f) =>
@@ -108,30 +123,41 @@ export function FichesClient({
       }
       setBatchMessage(`${res.data.count} fiche(s) transmise(s) avec succès.`);
       setSelectedIds([]);
+      setCounts((previous) => ({
+        nonTransmises: Math.max(0, previous.nonTransmises - res.data!.count),
+        transmises: previous.transmises + res.data!.count,
+      }));
       setData((previous) => ({ ...previous, total: statutTransmission === 'CONSERVEE_BUREAU' ? Math.max(0, previous.total - res.data!.count) : previous.total, fiches: previous.fiches.filter((fiche) => !res.data!.transmittedIds.includes(fiche.id)) }));
     });
   };
 
-  const pageTitle =
-    initialStatutTransmission === 'CONSERVEE_BUREAU'
-      ? 'Fiches à transmettre'
-      : initialStatutTransmission === 'TRANSMIS_DIVISION_CONTROLE'
-        ? 'Fiches transmises'
-        : 'Fiches d\'Enregistrement des Données d\'Ordonnancement';
+  const transmettreToutes = () => {
+    if (!counts.nonTransmises) return;
+    setBatchMessage(null);
+    startTransmitting(async () => {
+      const res = await transmettreToutesFichesDivisionControleAction();
+      if (!res.success || !res.data) {
+        setBatchMessage(res.error || 'Transmission globale impossible.');
+        return;
+      }
+      setBatchMessage(`${res.data.count} fiche(s) non transmise(s) ont été transmises avec succès.`);
+      setSelectedIds([]);
+      setCounts((previous) => ({ nonTransmises: Math.max(0, previous.nonTransmises - res.data!.count), transmises: previous.transmises + res.data!.count }));
+      setData((previous) => {
+        if (statutTransmission === 'CONSERVEE_BUREAU') return { fiches: [], total: 0 };
+        return {
+          ...previous,
+          fiches: previous.fiches.map((fiche) => res.data!.transmittedIds.includes(fiche.id)
+            ? { ...fiche, statut_transmission: 'TRANSMIS_DIVISION_CONTROLE' as const }
+            : fiche),
+        };
+      });
+    });
+  };
 
-  const pageDescription =
-    initialStatutTransmission === 'CONSERVEE_BUREAU'
-      ? 'Fiches d\'ordonnancement préparées, enregistrées et encore conservées au Bureau — non encore transmises au Contrôle.'
-      : initialStatutTransmission === 'TRANSMIS_DIVISION_CONTROLE'
-        ? 'Fiches d\'ordonnancement déjà transmises à la Division Contrôle. Consultation uniquement.'
-        : 'Registre des fiches d\'ordonnancement enregistrées, conservées au Bureau et transmises au Contrôle.';
-
-  const pageBadge =
-    initialStatutTransmission === 'CONSERVEE_BUREAU'
-      ? { label: '📋 À transmettre', className: 'rounded-md bg-blue-100 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-[#0a5db5]' }
-      : initialStatutTransmission === 'TRANSMIS_DIVISION_CONTROLE'
-        ? { label: '📤 Transmises', className: 'rounded-md bg-purple-100 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-purple-700' }
-        : { label: 'Ordonnancement', className: 'rounded-md bg-slate-100 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-600' };
+  const filteredSecteurs = bureauId
+    ? availableSecteurs.filter((secteur) => secteur.bureau_id === bureauId)
+    : availableSecteurs;
 
   return (
     <div className="space-y-6 pb-12">
@@ -139,15 +165,15 @@ export function FichesClient({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <span className={pageBadge.className}>{pageBadge.label}</span>
+            <span className="rounded-md bg-blue-100 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-[#0a5db5]">Ordonnancement</span>
             <span className="text-slate-300">·</span>
             <span className="text-xs font-semibold text-slate-500">Bureau Analyse et Recoupement</span>
           </div>
           <h1 className="mt-1 text-2xl font-extrabold text-slate-900">
-            {pageTitle}
+            Fiches d&apos;ordonnancement
           </h1>
           <p className="mt-1 text-xs text-slate-500">
-            {pageDescription}
+            Préparation, suivi et transmission des fiches d&apos;ordonnancement vers les bureaux de contrôle compétents.
           </p>
         </div>
 
@@ -158,32 +184,28 @@ export function FichesClient({
           >
             <span>◈ Répertoire des assujettis</span>
           </Link>
-          {initialStatutTransmission === 'CONSERVEE_BUREAU' && (
-            <Link
-              href="/recoupement/assujettis?filtre=SANS_FICHE"
-              className="inline-flex items-center gap-2 rounded-xl bg-[#0a5db5] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#093b78] transition"
-            >
-              <span>📝 Fiches à préparer</span>
-            </Link>
-          )}
-          {initialStatutTransmission === 'TRANSMIS_DIVISION_CONTROLE' && (
-            <Link
-              href="/recoupement/fiches-ordonnancement?statut_transmission=CONSERVEE_BUREAU"
-              className="inline-flex items-center gap-2 rounded-xl bg-[#0a5db5] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#093b78] transition"
-            >
-              <span>📋 Fiches à transmettre</span>
-            </Link>
-          )}
+          <Link href="/recoupement/assujettis?filtre=SANS_FICHE" className="inline-flex items-center gap-2 rounded-xl bg-[#0a5db5] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#093b78] transition">
+            <span>📝 Préparer une fiche</span>
+          </Link>
         </div>
       </div>
 
-      {isBureauAnalyse && statutTransmission !== 'TRANSMIS_DIVISION_CONTROLE' && fichesTransmissibles.length > 0 && (
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs text-slate-500">Non transmises</p><p className="mt-1 text-2xl font-extrabold text-[#0a5db5]">{counts.nonTransmises}</p></div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs text-slate-500">Transmises</p><p className="mt-1 text-2xl font-extrabold text-purple-700">{counts.transmises}</p></div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs text-slate-500">Total</p><p className="mt-1 text-2xl font-extrabold text-slate-900">{counts.nonTransmises + counts.transmises}</p></div>
+      </div>
+
+      {isBureauAnalyse && counts.nonTransmises > 0 && (
         <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50/50 p-4 text-xs">
           <span className="font-bold text-[#093b78]">{selectedIds.length} fiche(s) sélectionnée(s)</span>
-          <button type="button" onClick={() => setSelectedIds(fichesTransmissibles.map((fiche) => fiche.id))} className="font-semibold text-[#0a5db5] hover:underline">Sélectionner tout</button>
+          {fichesTransmissibles.length > 0 && <button type="button" onClick={() => setSelectedIds(fichesTransmissibles.map((fiche) => fiche.id))} className="font-semibold text-[#0a5db5] hover:underline">Sélectionner tout (page)</button>}
           <button type="button" onClick={() => setSelectedIds([])} className="font-semibold text-slate-600 hover:underline">Désélectionner tout</button>
           <button type="button" disabled={!selectedIds.length || isTransmitting} onClick={transmettreSelection} className="rounded-xl bg-[#0a5db5] px-4 py-2 font-bold text-white disabled:opacity-50">
             {isTransmitting ? 'Transmission...' : `Transmettre les ${selectedIds.length} fiche(s)`}
+          </button>
+          <button type="button" disabled={isTransmitting} onClick={transmettreToutes} className="rounded-xl border border-[#0a5db5] bg-white px-4 py-2 font-bold text-[#0a5db5] disabled:opacity-50">
+            {isTransmitting ? 'Transmission...' : `Transmettre les ${counts.nonTransmises} fiches non transmises`}
           </button>
           {batchMessage && <span className={batchMessage.includes('succès') ? 'font-semibold text-emerald-700' : 'font-semibold text-red-700'}>{batchMessage}</span>}
         </div>
@@ -195,7 +217,7 @@ export function FichesClient({
           <div className="min-w-[220px] flex-1">
             <input
               type="text"
-              placeholder="Rechercher par numéro de fiche, note, série, assujetti..."
+              placeholder="NIF, raison sociale ou référence..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#0a5db5] focus:outline-hidden"
@@ -203,18 +225,20 @@ export function FichesClient({
           </div>
 
           <div className="w-56">
+            <label className="mb-1 block text-[11px] font-bold text-slate-600">Statut de transmission</label>
             <select
               value={statutTransmission}
               onChange={(e) => setStatutTransmission(e.target.value)}
               className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-[#0a5db5] focus:outline-hidden"
             >
-              <option value="">Toutes les fiches</option>
-              <option value="CONSERVEE_BUREAU">Fiches non encore envoyées (Conservées)</option>
-              <option value="TRANSMIS_DIVISION_CONTROLE">Fiches déjà envoyées (Transmises au Contrôle)</option>
+              <option value="CONSERVEE_BUREAU">Non transmises</option>
+              <option value="TRANSMIS_DIVISION_CONTROLE">Transmises</option>
+              <option value="">Toutes</option>
             </select>
           </div>
 
           <div className="w-52">
+            <label className="mb-1 block text-[11px] font-bold text-slate-600">Bureau de contrôle</label>
             <select
               value={bureauId}
               onChange={(e) => setBureauId(e.target.value)}
@@ -229,6 +253,14 @@ export function FichesClient({
             </select>
           </div>
 
+          <div className="w-52">
+            <label className="mb-1 block text-[11px] font-bold text-slate-600">Secteur</label>
+            <select value={secteurId} onChange={(e) => setSecteurId(e.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-[#0a5db5] focus:outline-hidden">
+              <option value="">Tous les secteurs</option>
+              {filteredSecteurs.map((secteur) => <option key={secteur.id} value={secteur.id}>{secteur.nom} ({secteur.code})</option>)}
+            </select>
+          </div>
+
           <button
             type="submit"
             disabled={isPending}
@@ -237,7 +269,7 @@ export function FichesClient({
             {isPending ? 'Filtrage...' : 'Filtrer'}
           </button>
 
-          {(statutTransmission || search || bureauId) && (
+          {(statutTransmission !== 'CONSERVEE_BUREAU' || search || bureauId || secteurId) && (
             <button
               type="button"
               onClick={handleReset}
@@ -263,12 +295,13 @@ export function FichesClient({
             <table className="w-full text-left text-xs">
               <thead className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-600">
                 <tr>
-                  {isBureauAnalyse && statutTransmission !== 'TRANSMIS_DIVISION_CONTROLE' && <th className="px-4 py-3.5">Sélection</th>}
-                  <th className="px-4 py-3.5">Numéro Fiche</th>
-                  <th className="px-4 py-3.5">Assujetti / Secteur</th>
+                  {isBureauAnalyse && statutTransmission !== 'TRANSMIS_DIVISION_CONTROLE' && <th className="px-4 py-3.5"><span className="sr-only">Sélection</span><input aria-label="Sélectionner toutes les fiches de la page" type="checkbox" checked={fichesTransmissibles.length > 0 && fichesTransmissibles.every((fiche) => selectedIds.includes(fiche.id))} onChange={(event) => setSelectedIds(event.target.checked ? fichesTransmissibles.map((fiche) => fiche.id) : [])} /></th>}
+                  <th className="px-4 py-3.5">Référence</th>
+                  <th className="px-4 py-3.5">NIF / Assujetti / Secteur</th>
                   <th className="px-4 py-3.5">Bureau Compétent</th>
-                  <th className="px-4 py-3.5">Note de Perception / Acte</th>
-                  <th className="px-4 py-3.5 text-right">Montants Enregistrés</th>
+                  <th className="px-4 py-3.5">Date note</th>
+                  <th className="px-4 py-3.5 text-right">Montant dû CDF</th>
+                  <th className="px-4 py-3.5 text-right">Montant dû USD</th>
                   <th className="px-4 py-3.5 text-center">Statut Transmission</th>
                   <th className="px-4 py-3.5 text-right">Actions</th>
                 </tr>
@@ -296,26 +329,9 @@ export function FichesClient({
                         <p className="font-mono text-[11px] text-slate-400">{fiche.bureau?.code}</p>
                       </td>
 
-                      <td className="px-4 py-3">
-                        <p className="font-mono font-semibold text-slate-800">{fiche.numero_note_perception}</p>
-                        <p className="truncate max-w-[200px] text-slate-600" title={fiche.acte_generateur}>
-                          {fiche.acte_generateur}
-                        </p>
-                        <p className="text-[10px] text-slate-400">Art. {fiche.article_budgetaire || 'N/A'} · {fiche.nombre_actes} acte(s)</p>
-                      </td>
-
-                      <td className="px-4 py-3 text-right font-mono">
-                        {fiche.montant_cdf > 0 && (
-                          <p className="font-semibold text-slate-900">
-                            {new Intl.NumberFormat('fr-CD').format(fiche.montant_cdf)} <span className="text-[10px] font-sans font-bold text-blue-700">CDF</span>
-                          </p>
-                        )}
-                        {fiche.montant_usd > 0 && (
-                          <p className="font-semibold text-emerald-800">
-                            {new Intl.NumberFormat('fr-CD').format(fiche.montant_usd)} <span className="text-[10px] font-sans font-bold text-emerald-700">USD</span>
-                          </p>
-                        )}
-                      </td>
+                      <td className="px-4 py-3"><p className="font-medium text-slate-900">{new Date(`${fiche.date_note_perception}T00:00:00`).toLocaleDateString('fr-FR')}</p><p className="font-mono text-[11px] text-slate-500">{fiche.numero_note_perception}</p></td>
+                      <td className="px-4 py-3 text-right font-mono font-semibold text-slate-900">{fiche.montant_cdf > 0 ? new Intl.NumberFormat('fr-CD').format(fiche.montant_cdf) : '—'}</td>
+                      <td className="px-4 py-3 text-right font-mono font-semibold text-emerald-800">{fiche.montant_usd > 0 ? new Intl.NumberFormat('fr-CD').format(fiche.montant_usd) : '—'}</td>
 
                       <td className="px-4 py-3 text-center">
                         {isTransmise ? (

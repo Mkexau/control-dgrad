@@ -40,12 +40,6 @@ export function MissionsClient({
   userRole,
   bureauxList,
 }: MissionsClientProps) {
-  const [missions] = useState<MissionListItem[]>(initialMissions);
-  const [activeTab, setActiveTab] = useState<'ALL' | 'ACTION_REQUIRED' | 'IN_PROGRESS' | 'COMPLETED'>('ALL');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState<string>('ALL');
-  const [bureauFilter, setBureauFilter] = useState<string>('ALL');
-
   // Déterminer les statuts qui requièrent une action selon le rôle
   const isActionRequired = (statut: MissionStatus, type: MissionType): boolean => {
     switch (userRole) {
@@ -65,6 +59,19 @@ export function MissionsClient({
         return false;
     }
   };
+
+  const isHierarchicalReviewer = userRole === 'CHEF_DIVISION' || userRole === 'DIRECTEUR_CONTROLES';
+  const initialNeedsActionCount = initialMissions.filter((m) =>
+    isActionRequired(m.statut as MissionStatus, m.type_controle as MissionType)
+  ).length;
+
+  const [missions] = useState<MissionListItem[]>(initialMissions);
+  const [activeTab, setActiveTab] = useState<'ALL' | 'ACTION_REQUIRED' | 'IN_PROGRESS' | 'COMPLETED'>(
+    () => (isHierarchicalReviewer && initialNeedsActionCount > 0 ? 'ACTION_REQUIRED' : 'ALL')
+  );
+  const [searchQuery, setSearchQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState<string>('ALL');
+  const [bureauFilter, setBureauFilter] = useState<string>('ALL');
 
   const filteredMissions = missions.filter((m) => {
     const query = searchQuery.toLowerCase();
@@ -117,12 +124,23 @@ export function MissionsClient({
           </p>
         </div>
 
-        {userRole !== 'ADMIN' && (
+        {userRole !== 'ADMIN' && !isHierarchicalReviewer && (
           <Link
             href="/missions/nouvelle"
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Nouvelle Mission
+          </Link>
+        )}
+        {isHierarchicalReviewer && (
+          <Link
+            href="/missions/nouvelle"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             Nouvelle Mission
